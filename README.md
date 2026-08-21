@@ -82,6 +82,7 @@ Segunda aplicacion publicada a traves de Kong Community
 - [Validación](docs/validation.md)
 - [Operación](docs/operations.md)
 - [Troubleshooting](docs/troubleshooting.md)
+- [Compatibilidad y plan de pruebas de plugins](docs/plugins-compatibility-test-plan.md)
 - [Desinstalación](docs/uninstall.md)
 
 ## Seguridad
@@ -90,4 +91,3 @@ Segunda aplicacion publicada a traves de Kong Community
 - Admin API, Kong Manager, Portal y Portal API permanecen sin exposición externa.
 - El proxy se publica mediante una única Route HTTPS de OpenShift.
 - OpenShift aplica la SCC `restricted-v2` a las aplicaciones de prueba.
-
