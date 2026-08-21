@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kong-echo-2
+  namespace: kong-demo
+  labels:
+    app: kong-echo-2
+    app.kubernetes.io/name: kong-echo-2
+    app.kubernetes.io/part-of: kong-community-crc-lab
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kong-echo-2
+  template:
+    metadata:
+      labels:
+        app: kong-echo-2
+        app.kubernetes.io/name: kong-echo-2
+    spec:
+      containers:
+        - name: http-echo
+          image: hashicorp/http-echo:1.0
+          command: ["/http-echo"]
+          args:
+            - "-listen=:5678"
+            - "-text=Segunda aplicacion publicada a traves de Kong Community"
+          ports:
+            - name: http
+              containerPort: 5678
+              protocol: TCP
+

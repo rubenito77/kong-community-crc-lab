@@ -1,0 +1,27 @@
+env:
+  database: "off"
+
+postgresql:
+  enabled: false
+
+ingressController:
+  enabled: true
+
+containerSecurityContext:
+  enabled: false
+
+proxy:
+  type: ClusterIP
+
+admin:
+  enabled: false
+
+manager:
+  enabled: false
+
+portal:
+  enabled: false
+
+portalapi:
+  enabled: false
+

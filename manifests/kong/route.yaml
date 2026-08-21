@@ -1,0 +1,19 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: kong-proxy
+  namespace: kong
+  labels:
+    app.kubernetes.io/part-of: kong-community-crc-lab
+spec:
+  to:
+    kind: Service
+    name: kong-kong-proxy
+    weight: 100
+  port:
+    targetPort: kong-proxy
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+  wildcardPolicy: None
+
