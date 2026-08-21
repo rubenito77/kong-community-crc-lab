@@ -1,0 +1,22 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: kong-echo-2
+  namespace: kong-demo
+  annotations:
+    konghq.com/strip-path: "true"
+  labels:
+    app.kubernetes.io/part-of: kong-community-crc-lab
+spec:
+  ingressClassName: kong
+  rules:
+    - http:
+        paths:
+          - path: /demo2
+            pathType: Prefix
+            backend:
+              service:
+                name: kong-echo-2
+                port:
+                  number: 5678
+
