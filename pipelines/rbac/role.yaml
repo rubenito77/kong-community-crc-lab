@@ -1,0 +1,43 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: kong-plugin-tester
+  namespace: kong-demo
+  labels:
+    app.kubernetes.io/part-of: kong-community-crc-lab
+rules:
+  - apiGroups:
+      - configuration.konghq.com
+    resources:
+      - kongplugins
+    verbs:
+      - get
+      - list
+      - create
+      - update
+      - patch
+      - delete
+  - apiGroups:
+      - networking.k8s.io
+    resources:
+      - ingresses
+    verbs:
+      - get
+      - list
+      - update
+      - patch
+  - apiGroups:
+      - ""
+    resources:
+      - pods
+      - services
+      - events
+    verbs:
+      - get
+      - list
+  - apiGroups:
+      - ""
+    resources:
+      - pods/log
+    verbs:
+      - get

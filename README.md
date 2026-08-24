@@ -36,7 +36,12 @@ Las aplicaciones no se conectan activamente con Kong. Kong Ingress Controller ob
 ├── manifests/
 │   ├── namespaces/
 │   ├── kong/
-│   └── apps/
+│   ├── apps/
+│   └── plugins/
+├── pipelines/
+│   ├── rbac/
+│   ├── pipelines/
+│   └── runs/
 ├── scripts/
 │   ├── powershell/
 │   └── bash/
@@ -83,6 +88,7 @@ Segunda aplicacion publicada a traves de Kong Community
 - [Operación](docs/operations.md)
 - [Troubleshooting](docs/troubleshooting.md)
 - [Compatibilidad y plan de pruebas de plugins](docs/plugins-compatibility-test-plan.md)
+- [Pruebas automatizadas con OpenShift Pipelines](docs/openshift-pipelines.md)
 - [Desinstalación](docs/uninstall.md)
 
 ## Seguridad

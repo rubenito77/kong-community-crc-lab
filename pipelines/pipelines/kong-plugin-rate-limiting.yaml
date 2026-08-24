@@ -1,0 +1,186 @@
+apiVersion: tekton.dev/v1
+kind: Pipeline
+metadata:
+  name: kong-plugin-rate-limiting
+  namespace: kong-demo
+  labels:
+    app.kubernetes.io/part-of: kong-community-crc-lab
+spec:
+  description: >-
+    Clona el laboratorio, valida la linea base, aplica rate-limiting solamente
+    a /demo y comprueba el limite sin afectar /demo2.
+  params:
+    - name: git-url
+      type: string
+      default: https://github.com/rubenito77/kong-community-crc-lab.git
+    - name: git-revision
+      type: string
+      default: main
+    - name: kong-proxy-url
+      type: string
+      default: http://kong-kong-proxy.kong.svc.cluster.local
+    - name: cleanup
+      type: string
+      default: "false"
+  workspaces:
+    - name: shared
+  tasks:
+    - name: clone-repository
+      taskSpec:
+        params:
+          - name: git-url
+            type: string
+          - name: git-revision
+            type: string
+        workspaces:
+          - name: source
+        steps:
+          - name: clone
+            image: docker.io/alpine/git:v2.47.2
+            env:
+              - name: GIT_URL
+                value: $(params.git-url)
+              - name: GIT_REVISION
+                value: $(params.git-revision)
+            script: |
+              #!/bin/sh
+              set -eu
+              rm -rf "$(workspaces.source.path)"/*
+              git clone --depth 1 --branch "${GIT_REVISION}" "${GIT_URL}" "$(workspaces.source.path)"
+              git -C "$(workspaces.source.path)" rev-parse HEAD
+      params:
+        - name: git-url
+          value: $(params.git-url)
+        - name: git-revision
+          value: $(params.git-revision)
+      workspaces:
+        - name: source
+          workspace: shared
+
+    - name: validate-baseline
+      runAfter:
+        - clone-repository
+      taskSpec:
+        params:
+          - name: kong-proxy-url
+            type: string
+        steps:
+          - name: test-routes
+            image: docker.io/curlimages/curl:8.12.1
+            env:
+              - name: KONG_PROXY_URL
+                value: $(params.kong-proxy-url)
+            script: |
+              #!/bin/sh
+              set -eu
+              for path in demo demo2; do
+                code="$(curl -sS -o "/tmp/${path}.body" -w '%{http_code}' "${KONG_PROXY_URL}/${path}")"
+                echo "baseline /${path}: HTTP ${code}"
+                cat "/tmp/${path}.body"
+                echo
+                test "${code}" = "200"
+              done
+      params:
+        - name: kong-proxy-url
+          value: $(params.kong-proxy-url)
+
+    - name: apply-plugin
+      runAfter:
+        - validate-baseline
+      taskSpec:
+        workspaces:
+          - name: source
+        steps:
+          - name: apply
+            image: quay.io/openshift/origin-cli:4.22
+            script: |
+              #!/bin/sh
+              set -eu
+              oc apply -f "$(workspaces.source.path)/manifests/plugins/rate-limiting/kongplugin.yaml"
+              oc annotate ingress kong-echo \
+                -n kong-demo \
+                konghq.com/plugins=demo-rate-limit \
+                --overwrite
+              oc wait --for=jsonpath='{.plugin}'=rate-limiting \
+                kongplugin/demo-rate-limit \
+                -n kong-demo \
+                --timeout=60s
+              oc get kongplugin demo-rate-limit -n kong-demo -o yaml
+              oc get ingress kong-echo -n kong-demo \
+                -o jsonpath='{.metadata.annotations.konghq\.com/plugins}{"\n"}'
+              echo "Esperando reconciliacion de Kong Ingress Controller..."
+              sleep 10
+      workspaces:
+        - name: source
+          workspace: shared
+
+    - name: test-rate-limiting
+      runAfter:
+        - apply-plugin
+      taskSpec:
+        params:
+          - name: kong-proxy-url
+            type: string
+        workspaces:
+          - name: evidence
+        steps:
+          - name: execute
+            image: docker.io/curlimages/curl:8.12.1
+            env:
+              - name: KONG_PROXY_URL
+                value: $(params.kong-proxy-url)
+            script: |
+              #!/bin/sh
+              set -eu
+              evidence="$(workspaces.evidence.path)/rate-limiting-results.txt"
+              : > "${evidence}"
+              success=0
+              limited=0
+
+              for request in 1 2 3 4 5 6 7; do
+                code="$(curl -sS -D "/tmp/headers-${request}" -o "/tmp/body-${request}" \
+                  -w '%{http_code}' "${KONG_PROXY_URL}/demo")"
+                echo "request=${request} status=${code}" | tee -a "${evidence}"
+                grep -i '^x-ratelimit-' "/tmp/headers-${request}" | tee -a "${evidence}" || true
+                if [ "${code}" = "200" ]; then
+                  success=$((success + 1))
+                elif [ "${code}" = "429" ]; then
+                  limited=$((limited + 1))
+                else
+                  echo "Estado inesperado: ${code}" | tee -a "${evidence}"
+                  exit 1
+                fi
+              done
+
+              demo2_code="$(curl -sS -o /tmp/demo2.body -w '%{http_code}' "${KONG_PROXY_URL}/demo2")"
+              echo "control=/demo2 status=${demo2_code}" | tee -a "${evidence}"
+              cat /tmp/demo2.body | tee -a "${evidence}"
+              echo | tee -a "${evidence}"
+
+              test "${success}" -ge 1
+              test "${limited}" -ge 1
+              test "${demo2_code}" = "200"
+              echo "PASS: rate-limiting produjo HTTP 200 y HTTP 429; /demo2 continuo en HTTP 200" \
+                | tee -a "${evidence}"
+      params:
+        - name: kong-proxy-url
+          value: $(params.kong-proxy-url)
+      workspaces:
+        - name: evidence
+          workspace: shared
+  finally:
+    - name: cleanup
+      when:
+        - input: $(params.cleanup)
+          operator: in
+          values:
+            - "true"
+      taskSpec:
+        steps:
+          - name: remove-plugin
+            image: quay.io/openshift/origin-cli:4.22
+            script: |
+              #!/bin/sh
+              set -eu
+              oc annotate ingress kong-echo -n kong-demo konghq.com/plugins- || true
+              oc delete kongplugin demo-rate-limit -n kong-demo --ignore-not-found
