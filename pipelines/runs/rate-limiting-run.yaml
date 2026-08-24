@@ -22,4 +22,14 @@ spec:
       value: "false"
   workspaces:
     - name: shared
-      emptyDir: {}
+      volumeClaimTemplate:
+        metadata:
+          labels:
+            app.kubernetes.io/part-of: kong-community-crc-lab
+            kong-lab/plugin: rate-limiting
+        spec:
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 100Mi
