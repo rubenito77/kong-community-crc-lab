@@ -39,6 +39,163 @@ konghq.com/plugins=demo-rate-limit
 
 `Ingress/kong-echo-2` no fue modificado.
 
+## Archivos utilizados y modificados
+
+### Resumen
+
+| Archivo | Estado inicial | Cambio necesario | Estado final |
+|---|---|---|---|
+| `manifests/plugins/rate-limiting/kongplugin.yaml` | No existía al comenzar el laboratorio de plugins. | Se agregó la configuración declarativa de `rate-limiting`. | Define una cuota de cinco solicitudes por minuto e IP con `policy: local`. |
+| `pipelines/pipelines/kong-plugin-rate-limiting.yaml` | La clonación no definía un HOME escribible ni declaraba el workspace como seguro para Git. Los demás steps tampoco definían HOME. | Se agregó `HOME=/tekton/home`, `git config --global --add safe.directory` y HOME en todos los steps. | Compatible con el UID dinámico de `restricted-v2` y sin la advertencia de escritura en `/.docker` en futuras ejecuciones. |
+| `pipelines/runs/rate-limiting-run.yaml` | Usaba `emptyDir`, que no comparte contenido entre pods de TaskRuns diferentes. | Se reemplazó por un `volumeClaimTemplate` de `100Mi`, `ReadWriteOnce`. | El checkout y la evidencia se comparten mediante un PVC entre todas las Tasks. |
+| `pipelines/rbac/serviceaccount.yaml` | No existía una identidad específica para las pruebas. | Se creó `ServiceAccount/kong-plugin-tester`. | La Pipeline usa una identidad dedicada en `kong-demo`. |
+| `pipelines/rbac/role.yaml` | No existían permisos específicos para el laboratorio. | Se agregaron permisos limitados sobre `KongPlugin`, `Ingress` y recursos de diagnóstico. | No requiere `cluster-admin` ni lectura de Secrets. |
+| `pipelines/rbac/rolebinding.yaml` | No existía asociación entre identidad y permisos. | Se asoció el ServiceAccount con el Role. | Los steps pueden aplicar el plugin y anotar el Ingress dentro de `kong-demo`. |
+| `manifests/apps/kong-echo/ingress.yaml` | Contenía solamente `konghq.com/strip-path: "true"`. | **No se modificó en Git.** La Pipeline anotó el recurso vivo del cluster. | El manifiesto base continúa limpio; el estado vivo contiene también `konghq.com/plugins: demo-rate-limit`. |
+
+### Corrección de la tarea de clonación
+
+Antes:
+
+```yaml
+env:
+  - name: GIT_URL
+    value: $(params.git-url)
+  - name: GIT_REVISION
+    value: $(params.git-revision)
+script: |
+  #!/bin/sh
+  set -eu
+  rm -rf "$(workspaces.source.path)"/*
+  git clone --depth 1 --branch "${GIT_REVISION}" "${GIT_URL}" "$(workspaces.source.path)"
+```
+
+Después:
+
+```yaml
+env:
+  - name: HOME
+    value: /tekton/home
+  - name: GIT_URL
+    value: $(params.git-url)
+  - name: GIT_REVISION
+    value: $(params.git-revision)
+script: |
+  #!/bin/sh
+  set -eu
+  git config --global --add safe.directory "$(workspaces.source.path)"
+  rm -rf "$(workspaces.source.path)"/*
+  git clone --depth 1 --branch "${GIT_REVISION}" "${GIT_URL}" "$(workspaces.source.path)"
+```
+
+### Corrección del workspace compartido
+
+Antes:
+
+```yaml
+workspaces:
+  - name: shared
+    emptyDir: {}
+```
+
+Cada TaskRun obtenía un `emptyDir` diferente. Por ese motivo, el pod
+`apply-plugin` no encontraba los archivos clonados por el pod
+`clone-repository`.
+
+Después:
+
+```yaml
+workspaces:
+  - name: shared
+    volumeClaimTemplate:
+      metadata:
+        labels:
+          app.kubernetes.io/part-of: kong-community-crc-lab
+          kong-lab/plugin: rate-limiting
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 100Mi
+```
+
+El PVC permite que todos los pods de la ejecución utilicen el mismo checkout.
+
+## Estado del clúster antes y después
+
+### `KongPlugin`
+
+Antes:
+
+```text
+Error from server (NotFound):
+kongplugins.configuration.konghq.com "demo-rate-limit" not found
+```
+
+Después:
+
+```yaml
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: demo-rate-limit
+  namespace: kong-demo
+plugin: rate-limiting
+config:
+  minute: 5
+  policy: local
+  limit_by: ip
+  fault_tolerant: true
+  hide_client_headers: false
+```
+
+### Anotaciones de `Ingress/kong-echo`
+
+Antes:
+
+```yaml
+annotations:
+  konghq.com/strip-path: "true"
+```
+
+Después de la tarea `apply-plugin`:
+
+```yaml
+annotations:
+  konghq.com/strip-path: "true"
+  konghq.com/plugins: demo-rate-limit
+```
+
+La modificación se realizó con:
+
+```powershell
+oc annotate ingress kong-echo `
+  -n kong-demo `
+  konghq.com/plugins=demo-rate-limit `
+  --overwrite
+```
+
+### Flujo HTTP
+
+Antes:
+
+```text
+/demo  -> Ingress -> Service kong-echo -> Pod
+/demo2 -> Ingress -> Service kong-echo-2 -> Pod
+```
+
+Después:
+
+```text
+/demo  -> rate-limiting -> Ingress -> Service kong-echo -> Pod
+/demo2 -> Ingress -> Service kong-echo-2 -> Pod
+```
+
+El Deployment y el Service de ambas aplicaciones no fueron modificados. El
+plugin se incorporó en la capa de Kong asociada únicamente al Ingress
+`kong-echo`.
+
 ## Ejecuciones realizadas
 
 ### Intento 1: fallo de propiedad del workspace
