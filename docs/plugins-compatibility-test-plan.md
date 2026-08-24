@@ -108,7 +108,7 @@ Los plugins se aplicarán inicialmente a `/demo` y `/demo2` de forma granular. N
 
 | ID | Plugin | Prueba positiva | Prueba negativa | Resultado esperado |
 |---|---|---|---|---|
-| P01-01 | `rate-limiting` | Realizar solicitudes dentro del límite | Superar el límite configurado | HTTP 200 dentro del límite y HTTP 429 al excederlo. |
+| P01-01 | `rate-limiting` | Realizar solicitudes dentro del límite | Superar el límite configurado | **Aprobada 2026-08-24:** HTTP 200 dentro del límite y HTTP 429 al excederlo. [Evidencia](plugin-test-results/rate-limiting-2026-08-24.md). |
 | P01-02 | `request-size-limiting` | Enviar payload permitido | Enviar payload superior al máximo | HTTP 2xx/echo permitido y HTTP 413 para el exceso. |
 | P01-03 | `request-termination` | Verificar ruta sin plugin | Activar terminación temporal | La ruta seleccionada devuelve el status configurado sin llegar al backend. |
 | P01-04 | `ip-restriction` | Solicitar desde IP permitida | Solicitar desde IP denegada | Acceso permitido/HTTP 403 según lista. |
@@ -246,4 +246,3 @@ Este orden comienza con plugins fáciles de observar y revertir, y deja consumid
 - [Anotación `konghq.com/plugins`](https://developer.konghq.com/kubernetes-ingress-controller/reference/annotations/)
 - [Rate Limiting](https://developer.konghq.com/plugins/rate-limiting/)
 - [Plugins personalizados](https://developer.konghq.com/kubernetes-ingress-controller/custom-plugins/)
-
