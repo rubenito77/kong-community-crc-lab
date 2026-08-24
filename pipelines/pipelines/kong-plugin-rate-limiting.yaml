@@ -38,6 +38,8 @@ spec:
           - name: clone
             image: docker.io/alpine/git:v2.47.2
             env:
+              - name: HOME
+                value: /tekton/home
               - name: GIT_URL
                 value: $(params.git-url)
               - name: GIT_REVISION
@@ -45,6 +47,7 @@ spec:
             script: |
               #!/bin/sh
               set -eu
+              git config --global --add safe.directory "$(workspaces.source.path)"
               rm -rf "$(workspaces.source.path)"/*
               git clone --depth 1 --branch "${GIT_REVISION}" "${GIT_URL}" "$(workspaces.source.path)"
               git -C "$(workspaces.source.path)" rev-parse HEAD
