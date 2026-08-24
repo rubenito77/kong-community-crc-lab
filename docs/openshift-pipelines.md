@@ -21,6 +21,11 @@ modo DB-less.
 7. Confirmar que `/demo2` mantiene HTTP 200.
 8. Conservar el plugin para inspección o retirarlo mediante `cleanup=true`.
 
+Las Tasks se ejecutan en pods diferentes. El PipelineRun solicita un PVC
+temporal de `100Mi` mediante `volumeClaimTemplate` para compartir el repositorio
+clonado y el archivo de evidencias entre esos pods. Un workspace `emptyDir` no
+sirve para este flujo porque su contenido queda limitado al pod de cada TaskRun.
+
 El tráfico se envía al proxy interno:
 
 ```text
@@ -232,7 +237,7 @@ oc logs deployment/kong-kong -n kong -c proxy --since=10m
 
 OpenShift ejecuta los steps con un UID dinámico. La tarea de clonación define
 `HOME=/tekton/home` y registra `/workspace/source` como `safe.directory` de Git.
-Esto evita que Git rechace el workspace `emptyDir` por diferencias de propiedad:
+Esto evita que Git rechace el workspace compartido por diferencias de propiedad:
 
 ```text
 fatal: detected dubious ownership in repository at '/workspace/source'
