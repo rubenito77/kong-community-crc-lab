@@ -1,0 +1,15 @@
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: demo-rate-limit
+  namespace: kong-demo
+  labels:
+    app.kubernetes.io/part-of: kong-community-crc-lab
+    app.kubernetes.io/component: plugin-test
+plugin: rate-limiting
+config:
+  minute: 5
+  policy: local
+  limit_by: ip
+  fault_tolerant: true
+  hide_client_headers: false
