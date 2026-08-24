@@ -227,3 +227,16 @@ oc get events -n kong-demo --sort-by='.lastTimestamp' | Select-Object -Last 30
 oc logs deployment/kong-kong -n kong -c ingress-controller --since=10m
 oc logs deployment/kong-kong -n kong -c proxy --since=10m
 ```
+
+### Workspace y SCC `restricted-v2`
+
+OpenShift ejecuta los steps con un UID dinámico. La tarea de clonación define
+`HOME=/tekton/home` y registra `/workspace/source` como `safe.directory` de Git.
+Esto evita que Git rechace el workspace `emptyDir` por diferencias de propiedad:
+
+```text
+fatal: detected dubious ownership in repository at '/workspace/source'
+```
+
+No se deshabilita la SCC ni se fuerza un UID fijo; la corrección mantiene la
+compatibilidad con `restricted-v2`.
