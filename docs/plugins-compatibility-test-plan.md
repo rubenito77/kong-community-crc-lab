@@ -119,7 +119,7 @@ Para `rate-limiting` en este CRC con una sola réplica se usará `policy: local`
 
 | ID | Plugin | Prueba | Evidencia esperada |
 |---|---|---|---|
-| P02-01 | `correlation-id` | Solicitar `/demo` sin ID | Header de correlación generado y visible en respuesta/upstream según configuración. |
+| P02-01 | `correlation-id` | Solicitar `/demo` sin ID y con ID proporcionado por el cliente | **Aprobada 2026-08-25:** UUID generado, ID del cliente preservado y `/demo2` aislado. [Evidencia](plugin-test-results/correlation-id-2026-08-25.md). |
 | P02-02 | `request-transformer` | Agregar header antes del backend | El backend recibe el header agregado. |
 | P02-03 | `response-transformer` | Agregar header de respuesta | El cliente recibe el header definido. |
 | P02-04 | `cors` | Enviar preflight `OPTIONS` permitido | Headers CORS correctos. |
