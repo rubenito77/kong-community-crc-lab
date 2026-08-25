@@ -1,0 +1,207 @@
+apiVersion: tekton.dev/v1
+kind: Pipeline
+metadata:
+  name: kong-plugin-correlation-id
+  namespace: kong-demo
+  labels:
+    app.kubernetes.io/part-of: kong-community-crc-lab
+spec:
+  description: >-
+    Clona el laboratorio, valida la linea base, aplica correlation-id solamente
+    a /demo y comprueba generacion, propagacion y aislamiento respecto de /demo2.
+  params:
+    - name: git-url
+      type: string
+      default: https://github.com/rubenito77/kong-community-crc-lab.git
+    - name: git-revision
+      type: string
+      default: main
+    - name: kong-proxy-url
+      type: string
+      default: http://kong-kong-proxy.kong.svc.cluster.local
+    - name: cleanup
+      type: string
+      default: "false"
+  workspaces:
+    - name: shared
+  tasks:
+    - name: clone-repository
+      taskSpec:
+        params:
+          - name: git-url
+            type: string
+          - name: git-revision
+            type: string
+        workspaces:
+          - name: source
+        steps:
+          - name: clone
+            image: docker.io/alpine/git:v2.47.2
+            env:
+              - name: HOME
+                value: /tekton/home
+              - name: GIT_URL
+                value: $(params.git-url)
+              - name: GIT_REVISION
+                value: $(params.git-revision)
+            script: |
+              #!/bin/sh
+              set -eu
+              git config --global --add safe.directory "$(workspaces.source.path)"
+              rm -rf "$(workspaces.source.path)"/*
+              git clone --depth 1 --branch "${GIT_REVISION}" "${GIT_URL}" "$(workspaces.source.path)"
+              git -C "$(workspaces.source.path)" rev-parse HEAD
+      params:
+        - name: git-url
+          value: $(params.git-url)
+        - name: git-revision
+          value: $(params.git-revision)
+      workspaces:
+        - name: source
+          workspace: shared
+
+    - name: validate-baseline
+      runAfter:
+        - clone-repository
+      taskSpec:
+        params:
+          - name: kong-proxy-url
+            type: string
+        steps:
+          - name: test-routes
+            image: docker.io/curlimages/curl:8.12.1
+            env:
+              - name: HOME
+                value: /tekton/home
+              - name: KONG_PROXY_URL
+                value: $(params.kong-proxy-url)
+            script: |
+              #!/bin/sh
+              set -eu
+              for path in demo demo2; do
+                code="$(curl -sS -D "/tmp/${path}.headers" -o "/tmp/${path}.body" \
+                  -w '%{http_code}' "${KONG_PROXY_URL}/${path}")"
+                echo "baseline /${path}: HTTP ${code}"
+                test "${code}" = "200"
+                if grep -qi '^X-Lab-Correlation-ID:' "/tmp/${path}.headers"; then
+                  echo "La linea base ya contiene X-Lab-Correlation-ID en /${path}"
+                  exit 1
+                fi
+              done
+      params:
+        - name: kong-proxy-url
+          value: $(params.kong-proxy-url)
+
+    - name: apply-plugin
+      runAfter:
+        - validate-baseline
+      taskSpec:
+        workspaces:
+          - name: source
+        steps:
+          - name: apply
+            image: quay.io/openshift/origin-cli:4.22
+            env:
+              - name: HOME
+                value: /tekton/home
+            script: |
+              #!/bin/sh
+              set -eu
+              oc apply -f "$(workspaces.source.path)/manifests/plugins/correlation-id/kongplugin.yaml"
+              oc annotate ingress kong-echo \
+                -n kong-demo \
+                konghq.com/plugins=demo-correlation-id \
+                --overwrite
+              oc wait --for=jsonpath='{.plugin}'=correlation-id \
+                kongplugin/demo-correlation-id \
+                -n kong-demo \
+                --timeout=60s
+              oc get kongplugin demo-correlation-id -n kong-demo -o yaml
+              oc get ingress kong-echo -n kong-demo \
+                -o jsonpath='{.metadata.annotations.konghq\.com/plugins}{"\n"}'
+              echo "Esperando reconciliacion de Kong Ingress Controller..."
+              sleep 10
+      workspaces:
+        - name: source
+          workspace: shared
+
+    - name: test-correlation-id
+      runAfter:
+        - apply-plugin
+      taskSpec:
+        params:
+          - name: kong-proxy-url
+            type: string
+        workspaces:
+          - name: evidence
+        steps:
+          - name: execute
+            image: docker.io/curlimages/curl:8.12.1
+            env:
+              - name: HOME
+                value: /tekton/home
+              - name: KONG_PROXY_URL
+                value: $(params.kong-proxy-url)
+              - name: CLIENT_CORRELATION_ID
+                value: lab-client-20260825
+            script: |
+              #!/bin/sh
+              set -eu
+              evidence="$(workspaces.evidence.path)/correlation-id-results.txt"
+              : > "${evidence}"
+
+              generated_code="$(curl -sS -D /tmp/generated.headers -o /tmp/generated.body \
+                -w '%{http_code}' "${KONG_PROXY_URL}/demo")"
+              generated_id="$(grep -i '^X-Lab-Correlation-ID:' /tmp/generated.headers \
+                | head -n 1 | cut -d: -f2- | tr -d '\r' | sed 's/^[[:space:]]*//')"
+              echo "generated status=${generated_code} id=${generated_id}" | tee -a "${evidence}"
+              test "${generated_code}" = "200"
+              echo "${generated_id}" | grep -Eq \
+                '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'
+
+              custom_code="$(curl -sS -D /tmp/custom.headers -o /tmp/custom.body \
+                -H "X-Lab-Correlation-ID: ${CLIENT_CORRELATION_ID}" \
+                -w '%{http_code}' "${KONG_PROXY_URL}/demo")"
+              returned_id="$(grep -i '^X-Lab-Correlation-ID:' /tmp/custom.headers \
+                | head -n 1 | cut -d: -f2- | tr -d '\r' | sed 's/^[[:space:]]*//')"
+              echo "custom status=${custom_code} sent=${CLIENT_CORRELATION_ID} returned=${returned_id}" \
+                | tee -a "${evidence}"
+              test "${custom_code}" = "200"
+              test "${returned_id}" = "${CLIENT_CORRELATION_ID}"
+
+              control_code="$(curl -sS -D /tmp/control.headers -o /tmp/control.body \
+                -w '%{http_code}' "${KONG_PROXY_URL}/demo2")"
+              echo "control=/demo2 status=${control_code}" | tee -a "${evidence}"
+              test "${control_code}" = "200"
+              if grep -qi '^X-Lab-Correlation-ID:' /tmp/control.headers; then
+                echo "X-Lab-Correlation-ID aparecio inesperadamente en /demo2" | tee -a "${evidence}"
+                exit 1
+              fi
+
+              echo "PASS: UUID generado, ID del cliente preservado y /demo2 sin correlation-id" \
+                | tee -a "${evidence}"
+      params:
+        - name: kong-proxy-url
+          value: $(params.kong-proxy-url)
+      workspaces:
+        - name: evidence
+          workspace: shared
+  finally:
+    - name: cleanup
+      when:
+        - input: $(params.cleanup)
+          operator: in
+          values:
+            - "true"
+      taskSpec:
+        steps:
+          - name: remove-plugin
+            image: quay.io/openshift/origin-cli:4.22
+            env:
+              - name: HOME
+                value: /tekton/home
+            script: |
+              #!/bin/sh
+              set -eu
+              oc annotate ingress kong-echo -n kong-demo konghq.com/plugins- || true
+              oc delete kongplugin demo-correlation-id -n kong-demo --ignore-not-found
