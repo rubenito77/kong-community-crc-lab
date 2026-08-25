@@ -71,6 +71,12 @@ oc delete kongplugin demo-cors -n kong-demo
 
 La aplicación `kong-transform-echo` se conserva para pruebas posteriores.
 
+## Resultado real
+
+P02-04 y P02-05 fueron aprobadas el 2026-08-25 mediante el PipelineRun
+`kong-plugin-cors-2r66w`. La evidencia completa se encuentra en
+[Resultado de CORS](../plugin-test-results/cors-2026-08-25.md).
+
 ## Fuentes oficiales
 
 - [CORS plugin](https://developer.konghq.com/plugins/cors/)
