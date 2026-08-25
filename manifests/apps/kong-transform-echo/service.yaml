@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: kong-transform-echo
+  namespace: kong-demo
+  labels:
+    app.kubernetes.io/part-of: kong-community-crc-lab
+spec:
+  selector:
+    app: kong-transform-echo
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+      protocol: TCP
