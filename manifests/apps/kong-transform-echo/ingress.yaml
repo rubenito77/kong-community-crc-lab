@@ -1,0 +1,21 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: kong-transform-echo
+  namespace: kong-demo
+  annotations:
+    konghq.com/strip-path: "true"
+  labels:
+    app.kubernetes.io/part-of: kong-community-crc-lab
+spec:
+  ingressClassName: kong
+  rules:
+    - http:
+        paths:
+          - path: /transform
+            pathType: Prefix
+            backend:
+              service:
+                name: kong-transform-echo
+                port:
+                  number: 8080
