@@ -67,6 +67,12 @@ oc delete kongplugin demo-request-transformer demo-response-transformer -n kong-
 La aplicación de observación puede conservarse para futuras pruebas de headers,
 autenticación y CORS.
 
+## Resultado real
+
+P02-02 y P02-03 fueron aprobadas el 2026-08-25 mediante el PipelineRun
+`kong-plugin-transformers-fxkqz`. La evidencia completa se encuentra en
+[Resultado de transformadores](../plugin-test-results/transformers-2026-08-25.md).
+
 ## Fuentes oficiales
 
 - [Request Transformer](https://developer.konghq.com/plugins/request-transformer/examples/add-header/)
