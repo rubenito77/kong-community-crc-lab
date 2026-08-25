@@ -1,0 +1,201 @@
+apiVersion: tekton.dev/v1
+kind: Pipeline
+metadata:
+  name: kong-plugin-cors
+  namespace: kong-demo
+  labels:
+    app.kubernetes.io/part-of: kong-community-crc-lab
+spec:
+  description: >-
+    Valida CORS sobre /transform con preflight y GET permitidos, un origen no
+    autorizado y /demo y /demo2 como rutas de control.
+  params:
+    - name: git-url
+      type: string
+      default: https://github.com/rubenito77/kong-community-crc-lab.git
+    - name: git-revision
+      type: string
+      default: main
+    - name: kong-proxy-url
+      type: string
+      default: http://kong-kong-proxy.kong.svc.cluster.local
+    - name: cleanup
+      type: string
+      default: "false"
+  workspaces:
+    - name: shared
+  tasks:
+    - name: clone-repository
+      taskSpec:
+        params:
+          - name: git-url
+            type: string
+          - name: git-revision
+            type: string
+        workspaces:
+          - name: source
+        steps:
+          - name: clone
+            image: docker.io/alpine/git:v2.47.2
+            env:
+              - name: HOME
+                value: /tekton/home
+              - name: GIT_URL
+                value: $(params.git-url)
+              - name: GIT_REVISION
+                value: $(params.git-revision)
+            script: |
+              #!/bin/sh
+              set -eu
+              git config --global --add safe.directory "$(workspaces.source.path)"
+              rm -rf "$(workspaces.source.path)"/*
+              git clone --depth 1 --branch "${GIT_REVISION}" "${GIT_URL}" "$(workspaces.source.path)"
+              git -C "$(workspaces.source.path)" rev-parse HEAD
+      params:
+        - name: git-url
+          value: $(params.git-url)
+        - name: git-revision
+          value: $(params.git-revision)
+      workspaces:
+        - name: source
+          workspace: shared
+
+    - name: validate-baseline
+      runAfter:
+        - clone-repository
+      taskSpec:
+        params:
+          - name: kong-proxy-url
+            type: string
+        steps:
+          - name: test-route
+            image: docker.io/curlimages/curl:8.12.1
+            env:
+              - name: HOME
+                value: /tekton/home
+              - name: KONG_PROXY_URL
+                value: $(params.kong-proxy-url)
+            script: |
+              #!/bin/sh
+              set -eu
+              code="$(curl -sS -D /tmp/baseline.headers -o /dev/null -w '%{http_code}' \
+                -H 'Origin: https://cliente-lab.example' "${KONG_PROXY_URL}/transform")"
+              echo "baseline /transform: HTTP ${code}"
+              test "${code}" = "200"
+              ! grep -qi '^Access-Control-Allow-Origin:' /tmp/baseline.headers
+      params:
+        - name: kong-proxy-url
+          value: $(params.kong-proxy-url)
+
+    - name: apply-plugin
+      runAfter:
+        - validate-baseline
+      taskSpec:
+        workspaces:
+          - name: source
+        steps:
+          - name: apply
+            image: quay.io/openshift/origin-cli:4.22
+            env:
+              - name: HOME
+                value: /tekton/home
+            script: |
+              #!/bin/sh
+              set -eu
+              oc apply -f "$(workspaces.source.path)/manifests/plugins/cors/kongplugin.yaml"
+              oc annotate ingress kong-transform-echo -n kong-demo \
+                konghq.com/plugins=demo-cors --overwrite
+              sleep 10
+      workspaces:
+        - name: source
+          workspace: shared
+
+    - name: test-cors
+      runAfter:
+        - apply-plugin
+      taskSpec:
+        params:
+          - name: kong-proxy-url
+            type: string
+        workspaces:
+          - name: evidence
+        steps:
+          - name: execute
+            image: docker.io/curlimages/curl:8.12.1
+            env:
+              - name: HOME
+                value: /tekton/home
+              - name: KONG_PROXY_URL
+                value: $(params.kong-proxy-url)
+              - name: ALLOWED_ORIGIN
+                value: https://cliente-lab.example
+              - name: DENIED_ORIGIN
+                value: https://origen-no-permitido.example
+            script: |
+              #!/bin/sh
+              set -eu
+              evidence="$(workspaces.evidence.path)/cors-results.txt"
+              : > "${evidence}"
+
+              preflight="$(curl -sS -D /tmp/preflight.headers -o /tmp/preflight.body \
+                -w '%{http_code}' -X OPTIONS \
+                -H "Origin: ${ALLOWED_ORIGIN}" \
+                -H 'Access-Control-Request-Method: GET' \
+                -H 'Access-Control-Request-Headers: X-Lab-Client' \
+                "${KONG_PROXY_URL}/transform")"
+              echo "allowed preflight status=${preflight}" | tee -a "${evidence}"
+              test "${preflight}" = "204"
+              grep -Fqi "Access-Control-Allow-Origin: ${ALLOWED_ORIGIN}" /tmp/preflight.headers
+              grep -Eqi '^Access-Control-Allow-Methods:.*GET' /tmp/preflight.headers
+              grep -Eqi '^Access-Control-Allow-Headers:.*X-Lab-Client' /tmp/preflight.headers
+              grep -Fqi 'Access-Control-Max-Age: 600' /tmp/preflight.headers
+
+              allowed="$(curl -sS -D /tmp/allowed.headers -o /dev/null -w '%{http_code}' \
+                -H "Origin: ${ALLOWED_ORIGIN}" -H 'X-Lab-Client: tekton' \
+                "${KONG_PROXY_URL}/transform")"
+              echo "allowed GET status=${allowed}" | tee -a "${evidence}"
+              test "${allowed}" = "200"
+              grep -Fqi "Access-Control-Allow-Origin: ${ALLOWED_ORIGIN}" /tmp/allowed.headers
+
+              denied="$(curl -sS -D /tmp/denied.headers -o /dev/null -w '%{http_code}' \
+                -H "Origin: ${DENIED_ORIGIN}" "${KONG_PROXY_URL}/transform")"
+              echo "denied-origin GET status=${denied}" | tee -a "${evidence}"
+              test "${denied}" = "200"
+              ! grep -Fqi "Access-Control-Allow-Origin: ${DENIED_ORIGIN}" /tmp/denied.headers
+              ! grep -Fqi 'Access-Control-Allow-Origin: *' /tmp/denied.headers
+
+              for path in demo demo2; do
+                control="$(curl -sS -D "/tmp/${path}.headers" -o /dev/null \
+                  -w '%{http_code}' -H "Origin: ${ALLOWED_ORIGIN}" \
+                  "${KONG_PROXY_URL}/${path}")"
+                echo "control=/${path} status=${control}" | tee -a "${evidence}"
+                test "${control}" = "200"
+                ! grep -qi '^Access-Control-Allow-Origin:' "/tmp/${path}.headers"
+              done
+              echo 'PASS: preflight y GET permitidos, origen rechazado y controles aislados' \
+                | tee -a "${evidence}"
+      params:
+        - name: kong-proxy-url
+          value: $(params.kong-proxy-url)
+      workspaces:
+        - name: evidence
+          workspace: shared
+  finally:
+    - name: cleanup
+      when:
+        - input: $(params.cleanup)
+          operator: in
+          values:
+            - "true"
+      taskSpec:
+        steps:
+          - name: remove-plugin
+            image: quay.io/openshift/origin-cli:4.22
+            env:
+              - name: HOME
+                value: /tekton/home
+            script: |
+              #!/bin/sh
+              set -eu
+              oc annotate ingress kong-transform-echo -n kong-demo konghq.com/plugins- || true
+              oc delete kongplugin demo-cors -n kong-demo --ignore-not-found

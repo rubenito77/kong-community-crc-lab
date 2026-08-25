@@ -1,0 +1,24 @@
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: demo-cors
+  namespace: kong-demo
+  labels:
+    app.kubernetes.io/part-of: kong-community-crc-lab
+    app.kubernetes.io/component: plugin-test
+plugin: cors
+config:
+  origins:
+    - https://cliente-lab.example
+  methods:
+    - GET
+    - OPTIONS
+  headers:
+    - Accept
+    - Content-Type
+    - X-Lab-Client
+  exposed_headers:
+    - X-Lab-CORS
+  credentials: false
+  max_age: 600
+  preflight_continue: false
