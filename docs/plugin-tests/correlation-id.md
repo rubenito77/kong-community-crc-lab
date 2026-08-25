@@ -64,6 +64,12 @@ oc delete kongplugin demo-correlation-id -n kong-demo
 La evidencia real, PipelineRun, headers y cualquier corrección necesaria se
 registrarán después de ejecutar la prueba en CRC.
 
+## Resultado real
+
+La prueba fue aprobada el 2026-08-25 mediante el PipelineRun
+`kong-plugin-correlation-id-ts78l`. La evidencia completa se encuentra en
+[Resultado P02-01](../plugin-test-results/correlation-id-2026-08-25.md).
+
 ## Fuente oficial
 
 - [Kong Correlation ID plugin](https://developer.konghq.com/plugins/correlation-id/)
