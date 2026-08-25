@@ -29,9 +29,9 @@ que no pueden asociarse a rutas configuradas solamente por `Host`.
 | Etapa | Resultado esperado |
 |---|---|
 | Línea base | `/transform` responde 200 sin `Access-Control-Allow-Origin`. |
-| Preflight permitido | `OPTIONS` responde 204 y declara origen, método, header y max-age. |
+| Preflight permitido | `OPTIONS` responde 200 o 204 y declara origen, método, header y max-age. |
 | GET permitido | Responde 200 con el origen autorizado en `Access-Control-Allow-Origin`. |
-| Origen no autorizado | Responde sin otorgar CORS al origen enviado. |
+| Origen no autorizado | No refleja el origen enviado ni devuelve `*`; mantiene el origen permitido, por lo que el navegador bloquea el acceso. |
 | Controles | `/demo` y `/demo2` continúan en 200 sin headers CORS. |
 
 ## Archivos

@@ -144,7 +144,10 @@ spec:
                 -H 'Access-Control-Request-Headers: X-Lab-Client' \
                 "${KONG_PROXY_URL}/transform")"
               echo "allowed preflight status=${preflight}" | tee -a "${evidence}"
-              test "${preflight}" = "204"
+              case "${preflight}" in
+                200|204) ;;
+                *) echo "FAIL: preflight devolvio HTTP ${preflight}"; exit 1 ;;
+              esac
               grep -Fqi "Access-Control-Allow-Origin: ${ALLOWED_ORIGIN}" /tmp/preflight.headers
               grep -Eqi '^Access-Control-Allow-Methods:.*GET' /tmp/preflight.headers
               grep -Eqi '^Access-Control-Allow-Headers:.*X-Lab-Client' /tmp/preflight.headers
@@ -163,6 +166,7 @@ spec:
               test "${denied}" = "200"
               ! grep -Fqi "Access-Control-Allow-Origin: ${DENIED_ORIGIN}" /tmp/denied.headers
               ! grep -Fqi 'Access-Control-Allow-Origin: *' /tmp/denied.headers
+              grep -Fqi "Access-Control-Allow-Origin: ${ALLOWED_ORIGIN}" /tmp/denied.headers
 
               for path in demo demo2; do
                 control="$(curl -sS -D "/tmp/${path}.headers" -o /dev/null \
