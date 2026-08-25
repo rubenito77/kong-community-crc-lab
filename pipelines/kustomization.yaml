@@ -4,3 +4,4 @@ resources:
   - rbac
   - pipelines/kong-plugin-rate-limiting.yaml
   - pipelines/kong-plugin-correlation-id.yaml
+  - pipelines/kong-plugin-transformers.yaml
