@@ -122,8 +122,8 @@ Para `rate-limiting` en este CRC con una sola réplica se usará `policy: local`
 | P02-01 | `correlation-id` | Solicitar `/demo` sin ID y con ID proporcionado por el cliente | **Aprobada 2026-08-25:** UUID generado, ID del cliente preservado y `/demo2` aislado. [Evidencia](plugin-test-results/correlation-id-2026-08-25.md). |
 | P02-02 | `request-transformer` | Agregar header antes del backend | **Aprobada 2026-08-25:** el backend recibió `X-Lab-Request-Transform: added-by-kong`. [Evidencia](plugin-test-results/transformers-2026-08-25.md). |
 | P02-03 | `response-transformer` | Agregar header de respuesta | **Aprobada 2026-08-25:** el cliente recibió `X-Lab-Response-Transform: added-by-kong`; rutas de control aisladas. [Evidencia](plugin-test-results/transformers-2026-08-25.md). |
-| P02-04 | `cors` | Enviar preflight `OPTIONS` permitido | Headers CORS correctos. |
-| P02-05 | `cors` | Usar origen no autorizado | El origen no recibe permisos CORS válidos. |
+| P02-04 | `cors` | Enviar preflight `OPTIONS` permitido | **Aprobada 2026-08-25:** HTTP 200 con origen, métodos, headers y max-age correctos. [Evidencia](plugin-test-results/cors-2026-08-25.md). |
+| P02-05 | `cors` | Usar origen no autorizado | **Aprobada 2026-08-25:** el origen no fue reflejado ni recibió wildcard; `/demo` y `/demo2` quedaron aislados. [Evidencia](plugin-test-results/cors-2026-08-25.md). |
 
 ### Fase 3 - Autenticación y consumidores
 
