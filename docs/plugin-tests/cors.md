@@ -69,6 +69,32 @@ oc annotate ingress kong-transform-echo -n kong-demo konghq.com/plugins-
 oc delete kongplugin demo-cors -n kong-demo
 ```
 
+## Detalle de cada operación
+
+- `oc apply ... --dry-run=server` valida la Pipeline sin persistirla.
+- `oc apply -f ...` instala o actualiza `Pipeline/kong-plugin-cors`.
+- `oc create -f ... -o jsonpath=...` genera un PipelineRun nuevo y guarda su
+  nombre en `$PIPELINE_RUN`.
+- `validate-baseline` comprueba HTTP 200 sin headers `Access-Control-*`.
+- `apply-plugin` crea `KongPlugin/demo-cors` y lo asocia solamente a
+  `Ingress/kong-transform-echo`.
+- `test-cors` ejecuta `OPTIONS` con `Origin`, método y headers solicitados;
+  valida las cabeceras de autorización y luego ejecuta GET permitido, GET con
+  origen no autorizado y las rutas de control.
+
+```powershell
+oc get taskrun,pod -n kong-demo -l "tekton.dev/pipelineRun=$PIPELINE_RUN"
+$TEST_POD = oc get pod -n kong-demo -l "tekton.dev/pipelineRun=$PIPELINE_RUN,tekton.dev/pipelineTask=test-cors" -o jsonpath='{.items[0].metadata.name}'
+oc logs $TEST_POD -n kong-demo -c step-execute
+```
+
+El primer comando muestra cada tarea y pod. El selector compuesto obtiene solo
+el pod de prueba CORS y `oc logs ... -c step-execute` muestra sus aserciones.
+
+Durante el rollback, el `-` final en `konghq.com/plugins-` significa “eliminar
+esta anotación”. El segundo comando borra el CR. La comprobación final exige
+`/transform` en 200 sin headers CORS y ambas rutas de control en 200.
+
 La aplicación `kong-transform-echo` se conserva para pruebas posteriores.
 
 ## Resultado real

@@ -45,6 +45,34 @@ oc annotate ingress kong-transform-echo -n kong-demo konghq.com/plugins-
 oc delete kongplugin demo-ip-deny demo-ip-allow -n kong-demo
 ```
 
+## Detalle de validación, instalación y rollback
+
+La fase de descubrimiento es obligatoria porque Kong ve la IP del router
+OpenShift (`10.217.0.2`) y no directamente la IP del cliente externo.
+
+```powershell
+oc exec -n kong $KONG_POD -c proxy -- env |
+  Select-String -Pattern '^KONG_(TRUSTED_IPS|REAL_IP_HEADER|REAL_IP_RECURSIVE|PROXY_LISTEN)='
+oc logs deployment/kong-kong -n kong -c proxy --since=2m
+```
+
+El primer comando inspecciona la configuración de real-IP sin mostrar secretos;
+el segundo confirma la IP que Kong registra para una solicitud identificada.
+
+La Pipeline valida primero 200, aplica `demo-ip-deny`, espera reconciliación y
+exige 403. Luego reemplaza la anotación por `demo-ip-allow` y exige 200. Ambas
+fases consultan la Route pública para mantener el recorrido real por el router.
+
+```powershell
+oc get kongplugin demo-ip-deny demo-ip-allow -n kong-demo -o yaml
+oc get ingress kong-transform-echo -n kong-demo -o jsonpath='{.metadata.annotations.konghq\.com/plugins}'
+```
+
+El primer comando demuestra los CIDR configurados; el segundo muestra cuál de
+los dos plugins está activo (al finalizar debe ser `demo-ip-allow`). El rollback
+quita esa asociación y elimina ambos CR, incluido el de denegación ya inactivo.
+Se confirman las tres rutas en 200 y logs del controlador sin errores.
+
 ## Resultado real
 
 P01-04 fue aprobada el 2026-08-26 mediante el PipelineRun
