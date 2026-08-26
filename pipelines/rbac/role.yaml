@@ -10,6 +10,7 @@ rules:
       - configuration.konghq.com
     resources:
       - kongplugins
+      - kongconsumers
     verbs:
       - get
       - list
@@ -26,6 +27,17 @@ rules:
       - list
       - update
       - patch
+  - apiGroups:
+      - ""
+    resources:
+      - secrets
+    verbs:
+      - get
+      - list
+      - create
+      - update
+      - patch
+      - delete
   - apiGroups:
       - ""
     resources:
