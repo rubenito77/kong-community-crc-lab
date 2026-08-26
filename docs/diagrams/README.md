@@ -14,6 +14,7 @@ plugin y qué recursos temporales o persistentes necesita cada Pipeline.
 - [Request Termination](request-termination.md)
 - [IP Restriction](ip-restriction.md)
 - [Key Authentication](key-auth.md)
+- [Basic Authentication](basic-auth.md)
 
 ## Dependencias comparadas
 
@@ -27,6 +28,7 @@ plugin y qué recursos temporales o persistentes necesita cada Pipeline.
 | Request Termination | `kong-transform-echo` | Sí | No | No | Sí | No | KongPlugin + Ingress |
 | IP Restriction | `kong-transform-echo` | 2 | No | No | Sí | No | KongPlugin + Ingress |
 | Key Authentication | `kong-transform-echo` | Sí | Sí | Sí | Sí | Sí | Agrega KongConsumer + Secret |
+| Basic Authentication | `kong-transform-echo` | Sí | Sí | Sí | Sí | Sí | Reutiliza KongConsumer + Secret |
 
 El PVC pertenece al PipelineRun y comparte el repositorio clonado y la evidencia
 entre Tasks. `emptyDir` se usa solamente para pasar una credencial efímera entre
