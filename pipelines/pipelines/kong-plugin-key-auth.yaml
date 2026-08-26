@@ -1,0 +1,180 @@
+apiVersion: tekton.dev/v1
+kind: Pipeline
+metadata:
+  name: kong-plugin-key-auth
+  namespace: kong-demo
+  labels:
+    app.kubernetes.io/part-of: kong-community-crc-lab
+spec:
+  params:
+    - name: git-url
+      type: string
+    - name: git-revision
+      type: string
+    - name: kong-proxy-url
+      type: string
+    - name: cleanup
+      type: string
+      default: "false"
+  workspaces:
+    - name: shared
+  tasks:
+    - name: clone-repository
+      taskSpec:
+        params:
+          - name: git-url
+            type: string
+          - name: git-revision
+            type: string
+        workspaces:
+          - name: source
+        steps:
+          - name: clone
+            image: docker.io/alpine/git:v2.47.2
+            env:
+              - name: HOME
+                value: /tekton/home
+              - name: GIT_URL
+                value: $(params.git-url)
+              - name: GIT_REVISION
+                value: $(params.git-revision)
+            script: |
+              #!/bin/sh
+              set -eu
+              git config --global --add safe.directory "$(workspaces.source.path)"
+              rm -rf "$(workspaces.source.path)"/*
+              git clone --depth 1 --branch "${GIT_REVISION}" "${GIT_URL}" "$(workspaces.source.path)"
+              git -C "$(workspaces.source.path)" rev-parse HEAD
+      params:
+        - name: git-url
+          value: $(params.git-url)
+        - name: git-revision
+          value: $(params.git-revision)
+      workspaces:
+        - name: source
+          workspace: shared
+
+    - name: validate-baseline
+      runAfter: [clone-repository]
+      taskSpec:
+        params:
+          - name: kong-proxy-url
+            type: string
+        steps:
+          - name: test-route
+            image: docker.io/curlimages/curl:8.12.1
+            env:
+              - name: HOME
+                value: /tekton/home
+              - name: KONG_PROXY_URL
+                value: $(params.kong-proxy-url)
+            script: |
+              #!/bin/sh
+              set -eu
+              code="$(curl -sS -o /dev/null -w '%{http_code}' "${KONG_PROXY_URL}/transform")"
+              echo "baseline /transform without key: HTTP ${code}"
+              test "${code}" = "200"
+      params:
+        - name: kong-proxy-url
+          value: $(params.kong-proxy-url)
+
+    - name: configure-and-test
+      runAfter: [validate-baseline]
+      taskSpec:
+        params:
+          - name: kong-proxy-url
+            type: string
+        workspaces:
+          - name: source
+          - name: evidence
+        volumes:
+          - name: ephemeral-key
+            emptyDir: {}
+        steps:
+          - name: configure
+            image: quay.io/openshift/origin-cli:4.22
+            env:
+              - name: HOME
+                value: /tekton/home
+            volumeMounts:
+              - name: ephemeral-key
+                mountPath: /var/run/kong-key
+            script: |
+              #!/bin/sh
+              set -eu
+              API_KEY="$(tr -d '-' < /proc/sys/kernel/random/uuid)"
+              umask 077
+              printf '%s' "${API_KEY}" > /var/run/kong-key/value
+              oc create secret generic demo-key-auth-credential -n kong-demo \
+                --from-literal=key="${API_KEY}" --dry-run=client -o yaml | oc apply -f -
+              oc label secret demo-key-auth-credential -n kong-demo \
+                konghq.com/credential=key-auth --overwrite
+              oc apply -f "$(workspaces.source.path)/manifests/plugins/key-auth/kongconsumer.yaml"
+              oc apply -f "$(workspaces.source.path)/manifests/plugins/key-auth/kongplugin.yaml"
+              oc annotate ingress kong-transform-echo -n kong-demo \
+                konghq.com/plugins=demo-key-auth --overwrite
+              sleep 10
+          - name: test
+            image: docker.io/curlimages/curl:8.12.1
+            env:
+              - name: HOME
+                value: /tekton/home
+              - name: KONG_PROXY_URL
+                value: $(params.kong-proxy-url)
+            volumeMounts:
+              - name: ephemeral-key
+                mountPath: /var/run/kong-key
+            script: |
+              #!/bin/sh
+              set -eu
+              evidence="$(workspaces.evidence.path)/key-auth-results.txt"
+              : > "${evidence}"
+              missing="$(curl -sS -o /tmp/missing.body -w '%{http_code}' "${KONG_PROXY_URL}/transform")"
+              echo "missing key status=${missing}" | tee -a "${evidence}"
+              test "${missing}" = "401"
+              invalid="$(curl -sS -o /tmp/invalid.body -w '%{http_code}' \
+                -H 'apikey: invalid-laboratory-key' "${KONG_PROXY_URL}/transform")"
+              echo "invalid key status=${invalid}" | tee -a "${evidence}"
+              test "${invalid}" = "401"
+              API_KEY="$(cat /var/run/kong-key/value)"
+              valid="$(curl -sS -D /tmp/valid.headers -o /tmp/valid.body -w '%{http_code}' \
+                -H "apikey: ${API_KEY}" "${KONG_PROXY_URL}/transform")"
+              echo "valid key status=${valid}" | tee -a "${evidence}"
+              test "${valid}" = "200"
+              grep -q '"path"' /tmp/valid.body
+              ! grep -qi 'apikey' /tmp/valid.body
+              for path in demo demo2; do
+                control="$(curl -sS -o /dev/null -w '%{http_code}' "${KONG_PROXY_URL}/${path}")"
+                echo "control=/${path} status=${control}" | tee -a "${evidence}"
+                test "${control}" = "200"
+              done
+              rm -f /var/run/kong-key/value
+              echo 'PASS: clave ausente/invalida rechazada, clave valida aceptada y ocultada' | tee -a "${evidence}"
+      params:
+        - name: kong-proxy-url
+          value: $(params.kong-proxy-url)
+      workspaces:
+        - name: source
+          workspace: shared
+        - name: evidence
+          workspace: shared
+  finally:
+    - name: cleanup
+      when:
+        - input: $(params.cleanup)
+          operator: in
+          values: ["true"]
+      taskSpec:
+        steps:
+          - name: remove-auth
+            image: quay.io/openshift/origin-cli:4.22
+            env:
+              - name: HOME
+                value: /tekton/home
+            script: |
+              #!/bin/sh
+              set -eu
+              oc annotate ingress kong-transform-echo -n kong-demo konghq.com/plugins- || true
+              oc delete kongplugin demo-key-auth -n kong-demo --ignore-not-found
+              oc delete kongconsumer demo-key-auth-consumer -n kong-demo --ignore-not-found
+              oc delete secret demo-key-auth-credential -n kong-demo --ignore-not-found
