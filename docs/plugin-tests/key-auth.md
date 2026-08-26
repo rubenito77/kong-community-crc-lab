@@ -88,6 +88,8 @@ sin requerir `apikey`.
 P03-01 fue aprobada el 2026-08-26 mediante el PipelineRun
 `kong-plugin-key-auth-9fqzw`. La evidencia no contiene la API key. Véase
 [Resultado de Key Authentication](../plugin-test-results/key-auth-2026-08-26.md).
+El rollback posterior fue completado: se eliminaron Plugin, Consumer y Secret,
+y `/transform`, `/demo` y `/demo2` regresaron o permanecieron en HTTP 200.
 
 ## Fuentes oficiales
 
