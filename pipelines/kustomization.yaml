@@ -7,3 +7,4 @@ resources:
   - pipelines/kong-plugin-transformers.yaml
   - pipelines/kong-plugin-cors.yaml
   - pipelines/kong-plugin-request-size-limiting.yaml
+  - pipelines/kong-plugin-request-termination.yaml
