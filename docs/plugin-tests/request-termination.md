@@ -48,6 +48,30 @@ oc annotate ingress kong-transform-echo -n kong-demo konghq.com/plugins-
 oc delete kongplugin demo-request-termination -n kong-demo
 ```
 
+## Detalle de cada comando y validación
+
+- `oc apply ... --dry-run=server`: valida la Pipeline sin modificar el cluster.
+- `oc apply -f ...`: crea o actualiza la Pipeline.
+- `oc create -f pipelines/runs/request-termination-run.yaml`: inicia una
+  ejecución nueva; no reutiliza un PipelineRun anterior.
+- `validate-baseline`: confirma que Kong alcanza el upstream y obtiene 200.
+- `apply-plugin`: crea el CR y anota el Ingress; KIC traduce ambos recursos a la
+  configuración DB-less de Kong.
+- `test-termination`: exige 503 y el mensaje configurado, verifica que no exista
+  respuesta del backend y mantiene `/demo` y `/demo2` en 200.
+
+```powershell
+oc get kongplugin demo-request-termination -n kong-demo -o yaml
+curl.exe -k -sS -D - https://kong-proxy-kong.apps-crc.testing/transform
+```
+
+El primer comando muestra la configuración efectiva. El segundo permite ver
+`server: kong`, `x-kong-response-latency` y la ausencia de
+`x-kong-upstream-latency`, evidencia de que la respuesta terminó en Kong.
+
+En el rollback primero se elimina la asociación y luego el CR. Al repetir el
+curl debe regresar HTTP 200, JSON del backend y `x-kong-upstream-latency`.
+
 ## Resultado real
 
 P01-03 fue aprobada el 2026-08-26 mediante el PipelineRun
