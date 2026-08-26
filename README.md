@@ -102,7 +102,7 @@ validar estado inicial -> crear PipelineRun -> aplicar plugin
 | `request-termination` | `/transform` | Terminación en Kong con HTTP 503 | Aprobado y revertido |
 | `ip-restriction` | `/transform` | Denegación 403 y permiso 200 por CIDR | Aprobado y revertido |
 | `key-auth` | `/transform` | Sin key 401, key inválida 401 y válida 200 | Aprobado y revertido |
-| `basic-auth` | `/transform` | Sin credencial 401, inválida 401 y válida 200 | Preparado |
+| `basic-auth` | `/transform` | Sin credencial 401, inválida 401 y válida 200 | Aprobado; rollback pendiente |
 
 Las Pipelines usan `/demo` y `/demo2` como rutas de control para demostrar que
 el plugin solamente afecta el Ingress objetivo. Los resultados reales quedan
