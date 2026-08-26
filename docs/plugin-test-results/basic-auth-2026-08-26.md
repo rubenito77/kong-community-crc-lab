@@ -124,7 +124,7 @@ El PVC contiene el clon y evidencia HTTP, pero no la contraseña.
 La búsqueda de `error|failed|invalid|rejected` en los logs recientes de KIC no
 devolvió resultados.
 
-## Rollback previsto
+## Rollback ejecutado
 
 ```powershell
 oc annotate ingress kong-transform-echo -n kong-demo konghq.com/plugins-
@@ -136,8 +136,28 @@ oc delete secret demo-basic-auth-credential -n kong-demo
 Después del rollback, `/transform`, `/demo` y `/demo2` deben responder 200 sin
 credenciales y el Secret debe dejar de existir.
 
+El rollback fue ejecutado y validado el 2026-08-26:
+
+```text
+KongPlugin/demo-basic-auth: NotFound
+KongConsumer/demo-basic-auth-consumer: NotFound
+Secret/demo-basic-auth-credential: NotFound
+Ingress/kong-transform-echo plugins: vacío
+/transform: HTTP 200
+/demo: HTTP 200
+/demo2: HTTP 200
+x-kong-upstream-latency: 3
+x-kong-proxy-latency: 0
+WWW-Authenticate: ausente
+errores recientes de KIC: ninguno
+```
+
+La presencia de `x-kong-upstream-latency` demuestra que `/transform` volvió a
+alcanzar el backend sin autenticación. La contraseña dejó de existir en el
+cluster al eliminar el Secret.
+
 ## Conclusión
 
-P03-02 queda aprobada. Kong aplicó correctamente HTTP Basic, rechazó solicitudes
+P03-02 queda aprobada y revertida. Kong aplicó correctamente HTTP Basic, rechazó solicitudes
 sin credenciales o con credenciales inválidas, autenticó al Consumer válido,
 ocultó `Authorization` al upstream y mantuvo aisladas las rutas de control.
