@@ -129,7 +129,7 @@ Para `rate-limiting` en este CRC con una sola réplica se usará `policy: local`
 
 | ID | Plugin | Prueba positiva | Prueba negativa | Resultado esperado |
 |---|---|---|---|---|
-| P03-01 | `key-auth` | API key válida | Sin key y key inválida | HTTP 200 con key válida; HTTP 401 en los otros casos. |
+| P03-01 | `key-auth` | API key válida | Sin key y key inválida | **Aprobada 2026-08-26:** HTTP 200 con key válida, HTTP 401 sin key o con key inválida, credencial oculta al upstream y rutas de control aisladas. [Evidencia](plugin-test-results/key-auth-2026-08-26.md). |
 | P03-02 | `basic-auth` | Usuario/clave válidos | Credenciales inválidas | HTTP 200/401. |
 | P03-03 | `jwt` | JWT HS256 válido | Token ausente, vencido o firma inválida | HTTP 200/401. |
 | P03-04 | `acl` + autenticación | Consumer dentro del grupo | Consumer fuera del grupo | HTTP 200/403. |
