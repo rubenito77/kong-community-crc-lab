@@ -1,0 +1,37 @@
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  generateName: kong-plugin-ip-restriction-
+  namespace: kong-demo
+  labels:
+    app.kubernetes.io/part-of: kong-community-crc-lab
+    kong-lab/plugin: ip-restriction
+spec:
+  pipelineRef:
+    name: kong-plugin-ip-restriction
+  taskRunTemplate:
+    serviceAccountName: kong-plugin-tester
+  params:
+    - name: git-url
+      value: https://github.com/rubenito77/kong-community-crc-lab.git
+    - name: git-revision
+      value: main
+    - name: kong-proxy-url
+      value: https://kong-proxy-kong.apps-crc.testing
+    - name: client-cidr
+      value: 10.217.0.2/32
+    - name: cleanup
+      value: "false"
+  workspaces:
+    - name: shared
+      volumeClaimTemplate:
+        metadata:
+          labels:
+            app.kubernetes.io/part-of: kong-community-crc-lab
+            kong-lab/plugin: ip-restriction
+        spec:
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 100Mi

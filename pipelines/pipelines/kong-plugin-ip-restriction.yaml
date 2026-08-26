@@ -1,0 +1,231 @@
+apiVersion: tekton.dev/v1
+kind: Pipeline
+metadata:
+  name: kong-plugin-ip-restriction
+  namespace: kong-demo
+  labels:
+    app.kubernetes.io/part-of: kong-community-crc-lab
+spec:
+  description: >-
+    Valida deny y allow de ip-restriction para la IP que Kong observa detrás
+    de la Route de OpenShift, manteniendo /demo y /demo2 como controles.
+  params:
+    - name: git-url
+      type: string
+    - name: git-revision
+      type: string
+    - name: kong-proxy-url
+      type: string
+    - name: client-cidr
+      type: string
+    - name: cleanup
+      type: string
+      default: "false"
+  workspaces:
+    - name: shared
+  tasks:
+    - name: clone-repository
+      taskSpec:
+        params:
+          - name: git-url
+            type: string
+          - name: git-revision
+            type: string
+        workspaces:
+          - name: source
+        steps:
+          - name: clone
+            image: docker.io/alpine/git:v2.47.2
+            env:
+              - name: HOME
+                value: /tekton/home
+              - name: GIT_URL
+                value: $(params.git-url)
+              - name: GIT_REVISION
+                value: $(params.git-revision)
+            script: |
+              #!/bin/sh
+              set -eu
+              git config --global --add safe.directory "$(workspaces.source.path)"
+              rm -rf "$(workspaces.source.path)"/*
+              git clone --depth 1 --branch "${GIT_REVISION}" "${GIT_URL}" "$(workspaces.source.path)"
+              git -C "$(workspaces.source.path)" rev-parse HEAD
+      params:
+        - name: git-url
+          value: $(params.git-url)
+        - name: git-revision
+          value: $(params.git-revision)
+      workspaces:
+        - name: source
+          workspace: shared
+
+    - name: validate-baseline
+      runAfter: [clone-repository]
+      taskSpec:
+        params:
+          - name: kong-proxy-url
+            type: string
+        steps:
+          - name: test-route
+            image: docker.io/curlimages/curl:8.12.1
+            env:
+              - name: HOME
+                value: /tekton/home
+              - name: KONG_PROXY_URL
+                value: $(params.kong-proxy-url)
+            script: |
+              #!/bin/sh
+              set -eu
+              code="$(curl -k -sS -o /dev/null -w '%{http_code}' "${KONG_PROXY_URL}/transform")"
+              echo "baseline /transform: HTTP ${code}"
+              test "${code}" = "200"
+      params:
+        - name: kong-proxy-url
+          value: $(params.kong-proxy-url)
+
+    - name: apply-deny
+      runAfter: [validate-baseline]
+      taskSpec:
+        workspaces:
+          - name: source
+        steps:
+          - name: apply
+            image: quay.io/openshift/origin-cli:4.22
+            env:
+              - name: HOME
+                value: /tekton/home
+            script: |
+              #!/bin/sh
+              set -eu
+              oc apply -f "$(workspaces.source.path)/manifests/plugins/ip-restriction/deny.yaml"
+              oc annotate ingress kong-transform-echo -n kong-demo \
+                konghq.com/plugins=demo-ip-deny --overwrite
+              sleep 10
+      workspaces:
+        - name: source
+          workspace: shared
+
+    - name: test-deny
+      runAfter: [apply-deny]
+      taskSpec:
+        params:
+          - name: kong-proxy-url
+            type: string
+          - name: client-cidr
+            type: string
+        workspaces:
+          - name: evidence
+        steps:
+          - name: execute
+            image: docker.io/curlimages/curl:8.12.1
+            env:
+              - name: HOME
+                value: /tekton/home
+              - name: KONG_PROXY_URL
+                value: $(params.kong-proxy-url)
+              - name: CLIENT_CIDR
+                value: $(params.client-cidr)
+            script: |
+              #!/bin/sh
+              set -eu
+              evidence="$(workspaces.evidence.path)/ip-restriction-results.txt"
+              : > "${evidence}"
+              code="$(curl -k -sS -D /tmp/deny.headers -o /tmp/deny.body \
+                -w '%{http_code}' "${KONG_PROXY_URL}/transform")"
+              echo "deny cidr=${CLIENT_CIDR} status=${code}" | tee -a "${evidence}"
+              test "${code}" = "403"
+              grep -qi 'IP address' /tmp/deny.body
+              ! grep -qi '^x-kong-upstream-latency:' /tmp/deny.headers
+              for path in demo demo2; do
+                control="$(curl -k -sS -o /dev/null -w '%{http_code}' "${KONG_PROXY_URL}/${path}")"
+                echo "control=/${path} status=${control}" | tee -a "${evidence}"
+                test "${control}" = "200"
+              done
+      params:
+        - name: kong-proxy-url
+          value: $(params.kong-proxy-url)
+        - name: client-cidr
+          value: $(params.client-cidr)
+      workspaces:
+        - name: evidence
+          workspace: shared
+
+    - name: apply-allow
+      runAfter: [test-deny]
+      taskSpec:
+        workspaces:
+          - name: source
+        steps:
+          - name: apply
+            image: quay.io/openshift/origin-cli:4.22
+            env:
+              - name: HOME
+                value: /tekton/home
+            script: |
+              #!/bin/sh
+              set -eu
+              oc apply -f "$(workspaces.source.path)/manifests/plugins/ip-restriction/allow.yaml"
+              oc annotate ingress kong-transform-echo -n kong-demo \
+                konghq.com/plugins=demo-ip-allow --overwrite
+              sleep 10
+      workspaces:
+        - name: source
+          workspace: shared
+
+    - name: test-allow
+      runAfter: [apply-allow]
+      taskSpec:
+        params:
+          - name: kong-proxy-url
+            type: string
+          - name: client-cidr
+            type: string
+        workspaces:
+          - name: evidence
+        steps:
+          - name: execute
+            image: docker.io/curlimages/curl:8.12.1
+            env:
+              - name: HOME
+                value: /tekton/home
+              - name: KONG_PROXY_URL
+                value: $(params.kong-proxy-url)
+              - name: CLIENT_CIDR
+                value: $(params.client-cidr)
+            script: |
+              #!/bin/sh
+              set -eu
+              evidence="$(workspaces.evidence.path)/ip-restriction-results.txt"
+              code="$(curl -k -sS -D /tmp/allow.headers -o /tmp/allow.body \
+                -w '%{http_code}' "${KONG_PROXY_URL}/transform")"
+              echo "allow cidr=${CLIENT_CIDR} status=${code}" | tee -a "${evidence}"
+              test "${code}" = "200"
+              grep -q '"path"' /tmp/allow.body
+              grep -qi '^x-kong-upstream-latency:' /tmp/allow.headers
+              echo 'PASS: IP denegada y permitida; rutas de control aisladas' | tee -a "${evidence}"
+      params:
+        - name: kong-proxy-url
+          value: $(params.kong-proxy-url)
+        - name: client-cidr
+          value: $(params.client-cidr)
+      workspaces:
+        - name: evidence
+          workspace: shared
+  finally:
+    - name: cleanup
+      when:
+        - input: $(params.cleanup)
+          operator: in
+          values: ["true"]
+      taskSpec:
+        steps:
+          - name: remove-plugins
+            image: quay.io/openshift/origin-cli:4.22
+            env:
+              - name: HOME
+                value: /tekton/home
+            script: |
+              #!/bin/sh
+              set -eu
+              oc annotate ingress kong-transform-echo -n kong-demo konghq.com/plugins- || true
+              oc delete kongplugin demo-ip-deny demo-ip-allow -n kong-demo --ignore-not-found
