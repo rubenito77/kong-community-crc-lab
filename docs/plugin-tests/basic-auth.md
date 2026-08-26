@@ -78,6 +78,8 @@ Consumer y finalmente la credencial. Las tres rutas deben responder 200.
 P03-02 fue aprobada el 2026-08-26 mediante el PipelineRun
 `kong-plugin-basic-auth-rxq7f`. La evidencia no contiene usuario ni contraseña.
 Véase [Resultado de Basic Authentication](../plugin-test-results/basic-auth-2026-08-26.md).
+El rollback posterior eliminó Plugin, Consumer y Secret; `/transform`, `/demo`
+y `/demo2` quedaron en HTTP 200 sin requerir autenticación.
 
 ## Fuentes oficiales
 
