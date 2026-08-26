@@ -61,6 +61,31 @@ oc annotate ingress kong-echo -n kong-demo konghq.com/plugins-
 oc delete kongplugin demo-correlation-id -n kong-demo
 ```
 
+## Detalle de validación, instalación y rollback
+
+1. `oc apply ... --dry-run=server` envía la definición de la Pipeline al API
+   Server para validar CRD, esquema y admisión, pero no persiste cambios.
+2. `oc apply -f ...` crea o actualiza `Pipeline/kong-plugin-correlation-id`.
+3. `oc create -f pipelines/runs/correlation-id-run.yaml` crea siempre un
+   PipelineRun nuevo; `-o jsonpath` captura su nombre generado.
+4. La tarea `validate-baseline` comprueba `/demo` y `/demo2` en 200 y confirma
+   que el header del laboratorio no existe antes de activar el plugin.
+5. `apply-plugin` crea `KongPlugin/demo-correlation-id` y agrega
+   `konghq.com/plugins=demo-correlation-id` al Ingress `kong-echo`.
+6. `test-correlation-id` comprueba un UUID generado, preservación de un ID
+   enviado por el cliente y ausencia del header en `/demo2`.
+7. Para inspeccionar la ejecución:
+
+```powershell
+oc get taskrun,pod -n kong-demo -l "tekton.dev/pipelineRun=$PIPELINE_RUN"
+oc logs -n kong-demo -l "tekton.dev/pipelineRun=$PIPELINE_RUN" --all-containers=true --prefix=true
+oc get kongplugin demo-correlation-id -n kong-demo -o yaml
+```
+
+En el rollback, `konghq.com/plugins-` elimina únicamente esa anotación. Luego
+se elimina el `KongPlugin`; el Deployment, Service e Ingress permanecen. Se
+confirma `/demo` y `/demo2` en 200 y sin `X-Lab-Correlation-ID`.
+
 La evidencia real, PipelineRun, headers y cualquier corrección necesaria se
 registrarán después de ejecutar la prueba en CRC.
 
