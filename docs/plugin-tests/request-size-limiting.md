@@ -48,6 +48,12 @@ oc annotate ingress kong-transform-echo -n kong-demo konghq.com/plugins-
 oc delete kongplugin demo-request-size-limit -n kong-demo
 ```
 
+## Resultado real
+
+P01-02 fue aprobada el 2026-08-26 mediante el PipelineRun
+`kong-plugin-request-size-limiting-fzffl`. La evidencia completa se encuentra
+en [Resultado de Request Size Limiting](../plugin-test-results/request-size-limiting-2026-08-26.md).
+
 ## Fuente oficial
 
 - [Request Size Limiting](https://developer.konghq.com/plugins/request-size-limiting/reference/)
