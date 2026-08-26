@@ -1,0 +1,185 @@
+apiVersion: tekton.dev/v1
+kind: Pipeline
+metadata:
+  name: kong-plugin-basic-auth
+  namespace: kong-demo
+  labels:
+    app.kubernetes.io/part-of: kong-community-crc-lab
+spec:
+  params:
+    - name: git-url
+      type: string
+    - name: git-revision
+      type: string
+    - name: kong-proxy-url
+      type: string
+    - name: cleanup
+      type: string
+      default: "false"
+  workspaces:
+    - name: shared
+  tasks:
+    - name: clone-repository
+      taskSpec:
+        params:
+          - name: git-url
+            type: string
+          - name: git-revision
+            type: string
+        workspaces:
+          - name: source
+        steps:
+          - name: clone
+            image: docker.io/alpine/git:v2.47.2
+            env:
+              - name: HOME
+                value: /tekton/home
+              - name: GIT_URL
+                value: $(params.git-url)
+              - name: GIT_REVISION
+                value: $(params.git-revision)
+            script: |
+              #!/bin/sh
+              set -eu
+              git config --global --add safe.directory "$(workspaces.source.path)"
+              rm -rf "$(workspaces.source.path)"/*
+              git clone --depth 1 --branch "${GIT_REVISION}" "${GIT_URL}" "$(workspaces.source.path)"
+              git -C "$(workspaces.source.path)" rev-parse HEAD
+      params:
+        - name: git-url
+          value: $(params.git-url)
+        - name: git-revision
+          value: $(params.git-revision)
+      workspaces:
+        - name: source
+          workspace: shared
+
+    - name: validate-baseline
+      runAfter: [clone-repository]
+      taskSpec:
+        params:
+          - name: kong-proxy-url
+            type: string
+        steps:
+          - name: test-route
+            image: docker.io/curlimages/curl:8.12.1
+            env:
+              - name: HOME
+                value: /tekton/home
+              - name: KONG_PROXY_URL
+                value: $(params.kong-proxy-url)
+            script: |
+              #!/bin/sh
+              set -eu
+              code="$(curl -sS -o /dev/null -w '%{http_code}' "${KONG_PROXY_URL}/transform")"
+              echo "baseline /transform without credentials: HTTP ${code}"
+              test "${code}" = "200"
+      params:
+        - name: kong-proxy-url
+          value: $(params.kong-proxy-url)
+
+    - name: configure-and-test
+      runAfter: [validate-baseline]
+      taskSpec:
+        params:
+          - name: kong-proxy-url
+            type: string
+        workspaces:
+          - name: source
+          - name: evidence
+        volumes:
+          - name: ephemeral-credentials
+            emptyDir: {}
+        steps:
+          - name: configure
+            image: quay.io/openshift/origin-cli:4.22
+            env:
+              - name: HOME
+                value: /tekton/home
+            volumeMounts:
+              - name: ephemeral-credentials
+                mountPath: /var/run/kong-basic-auth
+            script: |
+              #!/bin/sh
+              set -eu
+              BASIC_USER="lab-basic-user"
+              BASIC_PASSWORD="$(tr -d '-' < /proc/sys/kernel/random/uuid)"
+              umask 077
+              printf '%s' "${BASIC_USER}" > /var/run/kong-basic-auth/username
+              printf '%s' "${BASIC_PASSWORD}" > /var/run/kong-basic-auth/password
+              oc create secret generic demo-basic-auth-credential -n kong-demo \
+                --from-literal=username="${BASIC_USER}" \
+                --from-literal=password="${BASIC_PASSWORD}" \
+                --dry-run=client -o yaml | oc apply -f -
+              oc label secret demo-basic-auth-credential -n kong-demo \
+                konghq.com/credential=basic-auth --overwrite
+              oc apply -f "$(workspaces.source.path)/manifests/plugins/basic-auth/kongconsumer.yaml"
+              oc apply -f "$(workspaces.source.path)/manifests/plugins/basic-auth/kongplugin.yaml"
+              oc annotate ingress kong-transform-echo -n kong-demo \
+                konghq.com/plugins=demo-basic-auth --overwrite
+              sleep 10
+          - name: test
+            image: docker.io/curlimages/curl:8.12.1
+            env:
+              - name: HOME
+                value: /tekton/home
+              - name: KONG_PROXY_URL
+                value: $(params.kong-proxy-url)
+            volumeMounts:
+              - name: ephemeral-credentials
+                mountPath: /var/run/kong-basic-auth
+            script: |
+              #!/bin/sh
+              set -eu
+              evidence="$(workspaces.evidence.path)/basic-auth-results.txt"
+              : > "${evidence}"
+              missing="$(curl -sS -o /tmp/missing.body -w '%{http_code}' "${KONG_PROXY_URL}/transform")"
+              echo "missing credentials status=${missing}" | tee -a "${evidence}"
+              test "${missing}" = "401"
+              invalid="$(curl -sS -o /tmp/invalid.body -w '%{http_code}' \
+                -u 'invalid-user:invalid-password' "${KONG_PROXY_URL}/transform")"
+              echo "invalid credentials status=${invalid}" | tee -a "${evidence}"
+              test "${invalid}" = "401"
+              BASIC_USER="$(cat /var/run/kong-basic-auth/username)"
+              BASIC_PASSWORD="$(cat /var/run/kong-basic-auth/password)"
+              valid="$(curl -sS -D /tmp/valid.headers -o /tmp/valid.body -w '%{http_code}' \
+                -u "${BASIC_USER}:${BASIC_PASSWORD}" "${KONG_PROXY_URL}/transform")"
+              echo "valid credentials status=${valid}" | tee -a "${evidence}"
+              test "${valid}" = "200"
+              grep -q '"path"' /tmp/valid.body
+              ! grep -qi 'authorization' /tmp/valid.body
+              for path in demo demo2; do
+                control="$(curl -sS -o /dev/null -w '%{http_code}' "${KONG_PROXY_URL}/${path}")"
+                echo "control=/${path} status=${control}" | tee -a "${evidence}"
+                test "${control}" = "200"
+              done
+              rm -f /var/run/kong-basic-auth/username /var/run/kong-basic-auth/password
+              echo 'PASS: credenciales ausentes/invalidas rechazadas, credenciales validas aceptadas y ocultadas' | tee -a "${evidence}"
+      params:
+        - name: kong-proxy-url
+          value: $(params.kong-proxy-url)
+      workspaces:
+        - name: source
+          workspace: shared
+        - name: evidence
+          workspace: shared
+  finally:
+    - name: cleanup
+      when:
+        - input: $(params.cleanup)
+          operator: in
+          values: ["true"]
+      taskSpec:
+        steps:
+          - name: remove-auth
+            image: quay.io/openshift/origin-cli:4.22
+            env:
+              - name: HOME
+                value: /tekton/home
+            script: |
+              #!/bin/sh
+              set -eu
+              oc annotate ingress kong-transform-echo -n kong-demo konghq.com/plugins- || true
+              oc delete kongplugin demo-basic-auth -n kong-demo --ignore-not-found
+              oc delete kongconsumer demo-basic-auth-consumer -n kong-demo --ignore-not-found
+              oc delete secret demo-basic-auth-credential -n kong-demo --ignore-not-found

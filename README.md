@@ -102,6 +102,7 @@ validar estado inicial -> crear PipelineRun -> aplicar plugin
 | `request-termination` | `/transform` | Terminación en Kong con HTTP 503 | Aprobado y revertido |
 | `ip-restriction` | `/transform` | Denegación 403 y permiso 200 por CIDR | Aprobado y revertido |
 | `key-auth` | `/transform` | Sin key 401, key inválida 401 y válida 200 | Aprobado y revertido |
+| `basic-auth` | `/transform` | Sin credencial 401, inválida 401 y válida 200 | Preparado |
 
 Las Pipelines usan `/demo` y `/demo2` como rutas de control para demostrar que
 el plugin solamente afecta el Ingress objetivo. Los resultados reales quedan
@@ -136,6 +137,7 @@ El segundo comando crea o actualiza el ServiceAccount y su RBAC namespace-scoped
 - [Request Termination](docs/plugin-tests/request-termination.md)
 - [IP Restriction](docs/plugin-tests/ip-restriction.md)
 - [Key Authentication](docs/plugin-tests/key-auth.md)
+- [Basic Authentication](docs/plugin-tests/basic-auth.md)
 - [Desinstalación](docs/uninstall.md)
 
 ## Seguridad

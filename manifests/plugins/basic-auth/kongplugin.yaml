@@ -1,0 +1,11 @@
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: demo-basic-auth
+  namespace: kong-demo
+  labels:
+    app.kubernetes.io/part-of: kong-community-crc-lab
+    app.kubernetes.io/component: plugin-test
+plugin: basic-auth
+config:
+  hide_credentials: true
