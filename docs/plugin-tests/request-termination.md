@@ -48,6 +48,12 @@ oc annotate ingress kong-transform-echo -n kong-demo konghq.com/plugins-
 oc delete kongplugin demo-request-termination -n kong-demo
 ```
 
+## Resultado real
+
+P01-03 fue aprobada el 2026-08-26 mediante el PipelineRun
+`kong-plugin-request-termination-4zht8`. La evidencia completa se encuentra en
+[Resultado de Request Termination](../plugin-test-results/request-termination-2026-08-26.md).
+
 ## Fuente oficial
 
 - [Request Termination](https://developer.konghq.com/plugins/request-termination/)
