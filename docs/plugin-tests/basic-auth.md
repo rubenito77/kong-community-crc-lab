@@ -73,6 +73,12 @@ oc delete secret demo-basic-auth-credential -n kong-demo
 Se desasocia primero para restaurar el tráfico; luego se eliminan Plugin,
 Consumer y finalmente la credencial. Las tres rutas deben responder 200.
 
+## Resultado real
+
+P03-02 fue aprobada el 2026-08-26 mediante el PipelineRun
+`kong-plugin-basic-auth-rxq7f`. La evidencia no contiene usuario ni contraseña.
+Véase [Resultado de Basic Authentication](../plugin-test-results/basic-auth-2026-08-26.md).
+
 ## Fuentes oficiales
 
 - [Múltiples métodos de autenticación con KIC](https://developer.konghq.com/kubernetes-ingress-controller/multiple-auth-methods/)
