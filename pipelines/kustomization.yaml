@@ -6,3 +6,4 @@ resources:
   - pipelines/kong-plugin-correlation-id.yaml
   - pipelines/kong-plugin-transformers.yaml
   - pipelines/kong-plugin-cors.yaml
+  - pipelines/kong-plugin-request-size-limiting.yaml
