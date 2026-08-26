@@ -83,6 +83,12 @@ El rollback respeta dependencias: desasocia el plugin, elimina `KongPlugin`,
 elimina `KongConsumer` y finalmente el Secret. `/transform` debe regresar a 200
 sin requerir `apikey`.
 
+## Resultado real
+
+P03-01 fue aprobada el 2026-08-26 mediante el PipelineRun
+`kong-plugin-key-auth-9fqzw`. La evidencia no contiene la API key. Véase
+[Resultado de Key Authentication](../plugin-test-results/key-auth-2026-08-26.md).
+
 ## Fuentes oficiales
 
 - [Key Authentication con KIC](https://developer.konghq.com/kubernetes-ingress-controller/get-started/key-authentication/)
