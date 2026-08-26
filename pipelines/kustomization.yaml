@@ -8,3 +8,4 @@ resources:
   - pipelines/kong-plugin-cors.yaml
   - pipelines/kong-plugin-request-size-limiting.yaml
   - pipelines/kong-plugin-request-termination.yaml
+  - pipelines/kong-plugin-ip-restriction.yaml
