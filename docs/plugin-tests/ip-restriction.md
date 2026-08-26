@@ -45,6 +45,12 @@ oc annotate ingress kong-transform-echo -n kong-demo konghq.com/plugins-
 oc delete kongplugin demo-ip-deny demo-ip-allow -n kong-demo
 ```
 
+## Resultado real
+
+P01-04 fue aprobada el 2026-08-26 mediante el PipelineRun
+`kong-plugin-ip-restriction-8cvm2`. La evidencia completa se encuentra en
+[Resultado de IP Restriction](../plugin-test-results/ip-restriction-2026-08-26.md).
+
 ## Fuentes oficiales
 
 - [Deny IP range](https://developer.konghq.com/plugins/ip-restriction/examples/deny/)
