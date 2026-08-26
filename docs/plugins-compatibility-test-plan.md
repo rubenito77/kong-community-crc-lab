@@ -111,7 +111,7 @@ Los plugins se aplicarán inicialmente a `/demo` y `/demo2` de forma granular. N
 | P01-01 | `rate-limiting` | Realizar solicitudes dentro del límite | Superar el límite configurado | **Aprobada 2026-08-24:** HTTP 200 dentro del límite y HTTP 429 al excederlo. [Evidencia](plugin-test-results/rate-limiting-2026-08-24.md). |
 | P01-02 | `request-size-limiting` | Enviar payload permitido | Enviar payload superior al máximo | **Aprobada 2026-08-26:** 512 bytes devolvieron HTTP 200 y 2048 bytes HTTP 413; rutas de control aisladas. [Evidencia](plugin-test-results/request-size-limiting-2026-08-26.md). |
 | P01-03 | `request-termination` | Verificar ruta sin plugin | Activar terminación temporal | **Aprobada 2026-08-26:** `/transform` cambió de HTTP 200 a 503 sin alcanzar el backend; rutas de control aisladas. [Evidencia](plugin-test-results/request-termination-2026-08-26.md). |
-| P01-04 | `ip-restriction` | Solicitar desde IP permitida | Solicitar desde IP denegada | Acceso permitido/HTTP 403 según lista. |
+| P01-04 | `ip-restriction` | Solicitar desde IP permitida | Solicitar desde IP denegada | **Aprobada 2026-08-26:** `10.217.0.2/32` devolvió HTTP 403 en deny y HTTP 200 en allow; rutas de control aisladas. [Evidencia](plugin-test-results/ip-restriction-2026-08-26.md). |
 
 Para `rate-limiting` en este CRC con una sola réplica se usará `policy: local`. Si Kong escala a varias réplicas, los contadores locales divergen; para límites compartidos en DB-less debe evaluarse Redis.
 
