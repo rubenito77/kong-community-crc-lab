@@ -131,7 +131,7 @@ Para `rate-limiting` en este CRC con una sola réplica se usará `policy: local`
 |---|---|---|---|---|
 | P03-01 | `key-auth` | API key válida | Sin key y key inválida | **Aprobada 2026-08-26:** HTTP 200 con key válida, HTTP 401 sin key o con key inválida, credencial oculta al upstream y rutas de control aisladas. [Evidencia](plugin-test-results/key-auth-2026-08-26.md). |
 | P03-02 | `basic-auth` | Usuario/clave válidos | Credenciales ausentes o inválidas | **Aprobada 2026-08-26:** HTTP 200 con credenciales válidas, HTTP 401 sin credenciales o con credenciales inválidas, `Authorization` ocultado y rutas de control aisladas. [Evidencia](plugin-test-results/basic-auth-2026-08-26.md). |
-| P03-03 | `jwt` | JWT HS256 válido | Token ausente, vencido o firma inválida | HTTP 200/401. |
+| P03-03 | `jwt` | JWT HS256 válido | Token ausente, vencido o firma inválida | **Aprobada 2026-08-27:** HTTP 200 con token válido; HTTP 401 sin token, vencido o con firma inválida; `Authorization` retirado con Request Transformer; rutas de control aisladas y rollback completo. [Evidencia](plugin-test-results/jwt-2026-08-27.md). |
 | P03-04 | `acl` + autenticación | Consumer dentro del grupo | Consumer fuera del grupo | HTTP 200/403. |
 | P03-05 | `hmac-auth` | Firma HMAC válida | Firma alterada o timestamp inválido | HTTP 200/401. |
 

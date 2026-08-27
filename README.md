@@ -103,7 +103,7 @@ validar estado inicial -> crear PipelineRun -> aplicar plugin
 | `ip-restriction` | `/transform` | Denegación 403 y permiso 200 por CIDR | Aprobado y revertido |
 | `key-auth` | `/transform` | Sin key 401, key inválida 401 y válida 200 | Aprobado y revertido |
 | `basic-auth` | `/transform` | Sin credencial 401, inválida 401 y válida 200 | Aprobado y revertido |
-| `jwt` | `/transform` | Ausente 401, firma inválida 401, vencido 401 y válido 200 | Preparado |
+| `jwt` | `/transform` | Ausente 401, firma inválida 401, vencido 401 y válido 200 | Aprobado y revertido |
 
 Las Pipelines usan `/demo` y `/demo2` como rutas de control para demostrar que
 el plugin solamente afecta el Ingress objetivo. Los resultados reales quedan
