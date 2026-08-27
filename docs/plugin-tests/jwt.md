@@ -58,6 +58,21 @@ upstream. El rollback eliminó Plugin, Consumer y Secret; `/transform`, `/demo` 
 `/demo2` volvieron a HTTP 200 y KIC quedó sin errores. La corrección incorpora
 Request Transformer para retirar el header sin imprimir ni persistir el token.
 
+## Resultado aprobado y rollback
+
+La segunda ejecución `kong-plugin-jwt-dwmzx` finalizó `True / Completed`. Validó
+token ausente 401, firma inválida 401, token vencido 401 y token válido 200;
+`Authorization` no llegó al upstream y `/demo` y `/demo2` permanecieron en 200.
+El Consumer quedó `Programmed=True` y KIC no registró errores.
+
+El rollback desasoció ambos plugins, eliminó los dos `KongPlugin`, el Consumer y
+el Secret, y restauró `/transform`, `/demo` y `/demo2` en HTTP 200.
+
+Durante la inspección se mostró accidentalmente el contenido Base64 de los campos
+del Secret. No se decodificó ni se registró en Git; la credencial era aleatoria y
+fue eliminada inmediatamente. Las inspecciones futuras deben limitarse a nombre,
+tipo, etiqueta y nombres de campos, nunca a `.data` completo.
+
 ## PowerShell
 
 ```powershell
