@@ -116,8 +116,9 @@ spec:
                 konghq.com/credential=jwt --overwrite
               oc apply -f "$(workspaces.source.path)/manifests/plugins/jwt/kongconsumer.yaml"
               oc apply -f "$(workspaces.source.path)/manifests/plugins/jwt/kongplugin.yaml"
+              oc apply -f "$(workspaces.source.path)/manifests/plugins/jwt/request-transformer-strip-authorization.yaml"
               oc annotate ingress kong-transform-echo -n kong-demo \
-                konghq.com/plugins=demo-jwt --overwrite
+                konghq.com/plugins=demo-jwt,demo-jwt-strip-authorization --overwrite
               sleep 10
           - name: test
             image: docker.io/python:3.13-alpine
@@ -232,5 +233,6 @@ spec:
               set -eu
               oc annotate ingress kong-transform-echo -n kong-demo konghq.com/plugins- || true
               oc delete kongplugin demo-jwt -n kong-demo --ignore-not-found
+              oc delete kongplugin demo-jwt-strip-authorization -n kong-demo --ignore-not-found
               oc delete kongconsumer demo-jwt-consumer -n kong-demo --ignore-not-found
               oc delete secret demo-jwt-credential -n kong-demo --ignore-not-found
