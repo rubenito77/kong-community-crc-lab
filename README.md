@@ -103,6 +103,7 @@ validar estado inicial -> crear PipelineRun -> aplicar plugin
 | `ip-restriction` | `/transform` | Denegación 403 y permiso 200 por CIDR | Aprobado y revertido |
 | `key-auth` | `/transform` | Sin key 401, key inválida 401 y válida 200 | Aprobado y revertido |
 | `basic-auth` | `/transform` | Sin credencial 401, inválida 401 y válida 200 | Aprobado y revertido |
+| `jwt` | `/transform` | Ausente 401, firma inválida 401, vencido 401 y válido 200 | Preparado |
 
 Las Pipelines usan `/demo` y `/demo2` como rutas de control para demostrar que
 el plugin solamente afecta el Ingress objetivo. Los resultados reales quedan
@@ -138,6 +139,7 @@ El segundo comando crea o actualiza el ServiceAccount y su RBAC namespace-scoped
 - [IP Restriction](docs/plugin-tests/ip-restriction.md)
 - [Key Authentication](docs/plugin-tests/key-auth.md)
 - [Basic Authentication](docs/plugin-tests/basic-auth.md)
+- [JWT HS256](docs/plugin-tests/jwt.md)
 - [Desinstalación](docs/uninstall.md)
 
 ## Seguridad

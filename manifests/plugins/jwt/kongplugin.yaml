@@ -1,0 +1,15 @@
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: demo-jwt
+  namespace: kong-demo
+  labels:
+    app.kubernetes.io/part-of: kong-community-crc-lab
+    app.kubernetes.io/component: plugin-test
+plugin: jwt
+config:
+  key_claim_name: iss
+  claims_to_verify:
+    - exp
+  header_names:
+    - authorization

@@ -1,0 +1,236 @@
+apiVersion: tekton.dev/v1
+kind: Pipeline
+metadata:
+  name: kong-plugin-jwt
+  namespace: kong-demo
+  labels:
+    app.kubernetes.io/part-of: kong-community-crc-lab
+spec:
+  params:
+    - name: git-url
+      type: string
+    - name: git-revision
+      type: string
+    - name: kong-proxy-url
+      type: string
+    - name: cleanup
+      type: string
+      default: "false"
+  workspaces:
+    - name: shared
+  tasks:
+    - name: clone-repository
+      taskSpec:
+        params:
+          - name: git-url
+            type: string
+          - name: git-revision
+            type: string
+        workspaces:
+          - name: source
+        steps:
+          - name: clone
+            image: docker.io/alpine/git:v2.47.2
+            env:
+              - name: HOME
+                value: /tekton/home
+              - name: GIT_URL
+                value: $(params.git-url)
+              - name: GIT_REVISION
+                value: $(params.git-revision)
+            script: |
+              #!/bin/sh
+              set -eu
+              git config --global --add safe.directory "$(workspaces.source.path)"
+              rm -rf "$(workspaces.source.path)"/*
+              git clone --depth 1 --branch "${GIT_REVISION}" "${GIT_URL}" "$(workspaces.source.path)"
+              git -C "$(workspaces.source.path)" rev-parse HEAD
+      params:
+        - name: git-url
+          value: $(params.git-url)
+        - name: git-revision
+          value: $(params.git-revision)
+      workspaces:
+        - name: source
+          workspace: shared
+
+    - name: validate-baseline
+      runAfter: [clone-repository]
+      taskSpec:
+        params:
+          - name: kong-proxy-url
+            type: string
+        steps:
+          - name: test-route
+            image: docker.io/curlimages/curl:8.12.1
+            env:
+              - name: HOME
+                value: /tekton/home
+              - name: KONG_PROXY_URL
+                value: $(params.kong-proxy-url)
+            script: |
+              #!/bin/sh
+              set -eu
+              code="$(curl -sS -o /dev/null -w '%{http_code}' "${KONG_PROXY_URL}/transform")"
+              echo "baseline /transform without JWT: HTTP ${code}"
+              test "${code}" = "200"
+      params:
+        - name: kong-proxy-url
+          value: $(params.kong-proxy-url)
+
+    - name: configure-and-test
+      runAfter: [validate-baseline]
+      taskSpec:
+        params:
+          - name: kong-proxy-url
+            type: string
+        workspaces:
+          - name: source
+          - name: evidence
+        volumes:
+          - name: ephemeral-jwt
+            emptyDir: {}
+        steps:
+          - name: configure
+            image: quay.io/openshift/origin-cli:4.22
+            env:
+              - name: HOME
+                value: /tekton/home
+            volumeMounts:
+              - name: ephemeral-jwt
+                mountPath: /var/run/kong-jwt
+            script: |
+              #!/bin/sh
+              set -eu
+              JWT_KEY="lab-jwt-$(tr -d '-' < /proc/sys/kernel/random/uuid)"
+              JWT_SECRET="$(tr -d '-' < /proc/sys/kernel/random/uuid)"
+              umask 077
+              printf '%s' "${JWT_KEY}" > /var/run/kong-jwt/key
+              printf '%s' "${JWT_SECRET}" > /var/run/kong-jwt/secret
+              oc create secret generic demo-jwt-credential -n kong-demo \
+                --from-literal=algorithm=HS256 \
+                --from-literal=key="${JWT_KEY}" \
+                --from-literal=secret="${JWT_SECRET}" \
+                --dry-run=client -o yaml | oc apply -f -
+              oc label secret demo-jwt-credential -n kong-demo \
+                konghq.com/credential=jwt --overwrite
+              oc apply -f "$(workspaces.source.path)/manifests/plugins/jwt/kongconsumer.yaml"
+              oc apply -f "$(workspaces.source.path)/manifests/plugins/jwt/kongplugin.yaml"
+              oc annotate ingress kong-transform-echo -n kong-demo \
+                konghq.com/plugins=demo-jwt --overwrite
+              sleep 10
+          - name: test
+            image: docker.io/python:3.13-alpine
+            env:
+              - name: KONG_PROXY_URL
+                value: $(params.kong-proxy-url)
+              - name: EVIDENCE_FILE
+                value: $(workspaces.evidence.path)/jwt-results.txt
+            volumeMounts:
+              - name: ephemeral-jwt
+                mountPath: /var/run/kong-jwt
+            script: |
+              #!/usr/bin/env python3
+              import base64
+              import hashlib
+              import hmac
+              import json
+              import os
+              import time
+              import urllib.error
+              import urllib.request
+
+              proxy = os.environ["KONG_PROXY_URL"].rstrip("/")
+              evidence_file = os.environ["EVIDENCE_FILE"]
+              with open("/var/run/kong-jwt/key", encoding="utf-8") as stream:
+                  credential_key = stream.read()
+              with open("/var/run/kong-jwt/secret", encoding="utf-8") as stream:
+                  credential_secret = stream.read()
+
+              def b64url(value):
+                  raw = json.dumps(value, separators=(",", ":")).encode()
+                  return base64.urlsafe_b64encode(raw).rstrip(b"=").decode()
+
+              def token(secret, expiration):
+                  header = b64url({"alg": "HS256", "typ": "JWT"})
+                  payload = b64url({"iss": credential_key, "exp": expiration})
+                  signing_input = f"{header}.{payload}".encode()
+                  signature = hmac.new(secret.encode(), signing_input, hashlib.sha256).digest()
+                  encoded_signature = base64.urlsafe_b64encode(signature).rstrip(b"=").decode()
+                  return f"{header}.{payload}.{encoded_signature}"
+
+              def request(path, bearer=None):
+                  headers = {}
+                  if bearer is not None:
+                      headers["Authorization"] = f"Bearer {bearer}"
+                  req = urllib.request.Request(f"{proxy}/{path}", headers=headers)
+                  try:
+                      with urllib.request.urlopen(req, timeout=15) as response:
+                          return response.status, response.read().decode(errors="replace")
+                  except urllib.error.HTTPError as error:
+                      return error.code, error.read().decode(errors="replace")
+
+              now = int(time.time())
+              results = []
+              status, _ = request("transform")
+              results.append(("missing token", status))
+              assert status == 401
+
+              status, _ = request("transform", token("invalid-signature-secret", now + 300))
+              results.append(("invalid signature", status))
+              assert status == 401
+
+              status, _ = request("transform", token(credential_secret, now - 60))
+              results.append(("expired token", status))
+              assert status == 401
+
+              status, body = request("transform", token(credential_secret, now + 300))
+              results.append(("valid token", status))
+              assert status == 200
+              assert '"path"' in body
+              assert "authorization" not in body.lower()
+
+              for path in ("demo", "demo2"):
+                  status, _ = request(path)
+                  results.append((f"control=/{path}", status))
+                  assert status == 200
+
+              with open(evidence_file, "w", encoding="utf-8") as evidence:
+                  for case, status in results:
+                      line = f"{case} status={status}"
+                      print(line)
+                      evidence.write(line + "\n")
+                  passed = "PASS: token ausente, firma invalida y token vencido rechazados; token valido aceptado y ocultado"
+                  print(passed)
+                  evidence.write(passed + "\n")
+
+              os.remove("/var/run/kong-jwt/key")
+              os.remove("/var/run/kong-jwt/secret")
+      params:
+        - name: kong-proxy-url
+          value: $(params.kong-proxy-url)
+      workspaces:
+        - name: source
+          workspace: shared
+        - name: evidence
+          workspace: shared
+  finally:
+    - name: cleanup
+      when:
+        - input: $(params.cleanup)
+          operator: in
+          values: ["true"]
+      taskSpec:
+        steps:
+          - name: remove-auth
+            image: quay.io/openshift/origin-cli:4.22
+            env:
+              - name: HOME
+                value: /tekton/home
+            script: |
+              #!/bin/sh
+              set -eu
+              oc annotate ingress kong-transform-echo -n kong-demo konghq.com/plugins- || true
+              oc delete kongplugin demo-jwt -n kong-demo --ignore-not-found
+              oc delete kongconsumer demo-jwt-consumer -n kong-demo --ignore-not-found
+              oc delete secret demo-jwt-credential -n kong-demo --ignore-not-found

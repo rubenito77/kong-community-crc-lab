@@ -11,3 +11,4 @@ resources:
   - pipelines/kong-plugin-ip-restriction.yaml
   - pipelines/kong-plugin-key-auth.yaml
   - pipelines/kong-plugin-basic-auth.yaml
+  - pipelines/kong-plugin-jwt.yaml
