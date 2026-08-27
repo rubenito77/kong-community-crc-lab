@@ -8,8 +8,9 @@ flowchart LR
   T -->|Firma inválida| E2[HTTP 401]
   T -->|exp vencido| E3[HTTP 401]
   T -->|HS256 válido<br/>iss coincide| CO[KongConsumer]
-  CO --> U[Upstream HTTP 200]
-  K -. token no llega .-> X[Authorization ausente en upstream]
+  CO --> R[Request Transformer]
+  R --> U[Upstream HTTP 200]
+  R -. elimina token .-> X[Authorization ausente en upstream]
 ```
 
 ```mermaid
@@ -21,7 +22,8 @@ flowchart TD
   GEN --> SEC[Secret jwt<br/>algorithm + key + secret]
   SEC --> CON[KongConsumer]
   CON --> PL[KongPlugin jwt<br/>verifica exp]
-  PL --> ING[Ingress /transform]
+  PL --> RT[Request Transformer<br/>elimina Authorization]
+  RT --> ING[Ingress /transform]
   ED --> PY[Python firma JWT en memoria]
   PY --> CASES[401 / 401 / 401 / 200]
 ```
