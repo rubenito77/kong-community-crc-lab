@@ -105,7 +105,7 @@ validar estado inicial -> crear PipelineRun -> aplicar plugin
 | `basic-auth` | `/transform` | Sin credencial 401, inválida 401 y válida 200 | Aprobado y revertido |
 | `jwt` | `/transform` | Ausente 401, firma inválida 401, vencido 401 y válido 200 | Aprobado y revertido |
 | `acl` + `key-auth` | `/transform` | Permitido 200, fuera del grupo 403 y sin key 401 | Aprobado y revertido |
-| `hmac-auth` | `/transform` | Ausente 401, inválida 401, vencida 401 y válida 200 | Preparado |
+| `hmac-auth` | `/transform` | Ausente 401, inválida 401, vencida 401 y válida 200 | Aprobado; rollback pendiente |
 
 Las Pipelines usan `/demo` y `/demo2` como rutas de control para demostrar que
 el plugin solamente afecta el Ingress objetivo. Los resultados reales quedan
