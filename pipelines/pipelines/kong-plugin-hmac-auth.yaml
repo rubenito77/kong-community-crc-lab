@@ -1,0 +1,244 @@
+apiVersion: tekton.dev/v1
+kind: Pipeline
+metadata:
+  name: kong-plugin-hmac-auth
+  namespace: kong-demo
+  labels:
+    app.kubernetes.io/part-of: kong-community-crc-lab
+spec:
+  params:
+    - name: git-url
+      type: string
+    - name: git-revision
+      type: string
+    - name: kong-proxy-url
+      type: string
+    - name: cleanup
+      type: string
+      default: "false"
+  workspaces:
+    - name: shared
+  tasks:
+    - name: clone-repository
+      taskSpec:
+        params:
+          - name: git-url
+            type: string
+          - name: git-revision
+            type: string
+        workspaces:
+          - name: source
+        steps:
+          - name: clone
+            image: docker.io/alpine/git:v2.47.2
+            env:
+              - name: HOME
+                value: /tekton/home
+              - name: GIT_URL
+                value: $(params.git-url)
+              - name: GIT_REVISION
+                value: $(params.git-revision)
+            script: |
+              #!/bin/sh
+              set -eu
+              git config --global --add safe.directory "$(workspaces.source.path)"
+              rm -rf "$(workspaces.source.path)"/*
+              git clone --depth 1 --branch "${GIT_REVISION}" "${GIT_URL}" "$(workspaces.source.path)"
+              git -C "$(workspaces.source.path)" rev-parse HEAD
+      params:
+        - name: git-url
+          value: $(params.git-url)
+        - name: git-revision
+          value: $(params.git-revision)
+      workspaces:
+        - name: source
+          workspace: shared
+
+    - name: validate-baseline
+      runAfter: [clone-repository]
+      taskSpec:
+        params:
+          - name: kong-proxy-url
+            type: string
+        steps:
+          - name: test-route
+            image: docker.io/curlimages/curl:8.12.1
+            env:
+              - name: HOME
+                value: /tekton/home
+              - name: KONG_PROXY_URL
+                value: $(params.kong-proxy-url)
+            script: |
+              #!/bin/sh
+              set -eu
+              code="$(curl -sS -o /dev/null -w '%{http_code}' "${KONG_PROXY_URL}/transform")"
+              echo "baseline /transform without HMAC: HTTP ${code}"
+              test "${code}" = "200"
+      params:
+        - name: kong-proxy-url
+          value: $(params.kong-proxy-url)
+
+    - name: configure-and-test
+      runAfter: [validate-baseline]
+      taskSpec:
+        params:
+          - name: kong-proxy-url
+            type: string
+        workspaces:
+          - name: source
+          - name: evidence
+        volumes:
+          - name: ephemeral-hmac
+            emptyDir: {}
+        steps:
+          - name: configure
+            image: quay.io/openshift/origin-cli:4.22
+            env:
+              - name: HOME
+                value: /tekton/home
+            volumeMounts:
+              - name: ephemeral-hmac
+                mountPath: /var/run/kong-hmac
+            script: |
+              #!/bin/sh
+              set -eu
+              HMAC_USERNAME="lab-hmac-$(tr -d '-' < /proc/sys/kernel/random/uuid)"
+              HMAC_SECRET="$(tr -d '-' < /proc/sys/kernel/random/uuid)"
+              umask 077
+              printf '%s' "${HMAC_USERNAME}" > /var/run/kong-hmac/username
+              printf '%s' "${HMAC_SECRET}" > /var/run/kong-hmac/secret
+
+              oc create secret generic demo-hmac-auth-credential -n kong-demo                 --from-literal=username="${HMAC_USERNAME}"                 --from-literal=secret="${HMAC_SECRET}"                 --dry-run=client -o yaml | oc apply -f -
+              oc label secret demo-hmac-auth-credential -n kong-demo                 konghq.com/credential=hmac-auth --overwrite
+
+              oc apply -f "$(workspaces.source.path)/manifests/plugins/hmac-auth/kongconsumer.yaml"
+              oc apply -f "$(workspaces.source.path)/manifests/plugins/hmac-auth/kongplugin.yaml"
+              oc annotate ingress kong-transform-echo -n kong-demo                 konghq.com/plugins=demo-hmac-auth --overwrite
+              sleep 10
+
+          - name: test
+            image: docker.io/python:3.13-alpine
+            env:
+              - name: KONG_PROXY_URL
+                value: $(params.kong-proxy-url)
+              - name: EVIDENCE_FILE
+                value: $(workspaces.evidence.path)/hmac-auth-results.txt
+            volumeMounts:
+              - name: ephemeral-hmac
+                mountPath: /var/run/kong-hmac
+            script: |
+              #!/usr/bin/env python3
+              import base64
+              import hashlib
+              import hmac
+              import os
+              import time
+              import urllib.error
+              import urllib.request
+              from email.utils import formatdate
+
+              proxy = os.environ["KONG_PROXY_URL"].rstrip("/")
+              evidence_file = os.environ["EVIDENCE_FILE"]
+              with open("/var/run/kong-hmac/username", encoding="utf-8") as stream:
+                  username = stream.read()
+              with open("/var/run/kong-hmac/secret", encoding="utf-8") as stream:
+                  secret = stream.read()
+
+              def authorization(signing_secret, date_value):
+                  signing_string = f"date: {date_value}".encode()
+                  digest = hmac.new(
+                      signing_secret.encode(), signing_string, hashlib.sha256
+                  ).digest()
+                  signature = base64.b64encode(digest).decode()
+                  return (
+                      f'hmac username="{username}", algorithm="hmac-sha256", '
+                      f'headers="date", signature="{signature}"'
+                  )
+
+              def request(date_value=None, auth_value=None):
+                  headers = {}
+                  if date_value is not None:
+                      headers["Date"] = date_value
+                  if auth_value is not None:
+                      headers["Authorization"] = auth_value
+                  req = urllib.request.Request(f"{proxy}/transform", headers=headers)
+                  try:
+                      with urllib.request.urlopen(req, timeout=15) as response:
+                          return response.status, response.read().decode(errors="replace")
+                  except urllib.error.HTTPError as error:
+                      return error.code, error.read().decode(errors="replace")
+
+              results = []
+
+              status, _ = request()
+              results.append(("missing signature", status))
+              assert status == 401
+
+              current_date = formatdate(timeval=None, localtime=False, usegmt=True)
+              status, _ = request(
+                  current_date, authorization("invalid-laboratory-secret", current_date)
+              )
+              results.append(("invalid signature", status))
+              assert status == 401
+
+              stale_date = formatdate(timeval=time.time() - 120, localtime=False, usegmt=True)
+              status, _ = request(stale_date, authorization(secret, stale_date))
+              results.append(("stale signed date", status))
+              assert status == 401
+
+              valid_date = formatdate(timeval=None, localtime=False, usegmt=True)
+              status, body = request(valid_date, authorization(secret, valid_date))
+              results.append(("valid signature", status))
+              assert status == 200
+              assert '"path"' in body
+              assert "authorization" not in body.lower()
+
+              for path in ("demo", "demo2"):
+                  req = urllib.request.Request(f"{proxy}/{path}")
+                  with urllib.request.urlopen(req, timeout=15) as response:
+                      results.append((f"control=/{path}", response.status))
+                      assert response.status == 200
+
+              with open(evidence_file, "w", encoding="utf-8") as evidence:
+                  for case, status in results:
+                      line = f"{case} status={status}"
+                      print(line)
+                      evidence.write(line + "\n")
+                  passed = (
+                      "PASS: firma ausente, invalida y vencida rechazadas; "
+                      "firma valida aceptada y ocultada"
+                  )
+                  print(passed)
+                  evidence.write(passed + "\n")
+
+              os.remove("/var/run/kong-hmac/username")
+              os.remove("/var/run/kong-hmac/secret")
+      params:
+        - name: kong-proxy-url
+          value: $(params.kong-proxy-url)
+      workspaces:
+        - name: source
+          workspace: shared
+        - name: evidence
+          workspace: shared
+
+  finally:
+    - name: cleanup
+      when:
+        - input: $(params.cleanup)
+          operator: in
+          values: ["true"]
+      taskSpec:
+        steps:
+          - name: remove-auth
+            image: quay.io/openshift/origin-cli:4.22
+            env:
+              - name: HOME
+                value: /tekton/home
+            script: |
+              #!/bin/sh
+              set -eu
+              oc annotate ingress kong-transform-echo -n kong-demo konghq.com/plugins- || true
+              oc delete kongplugin demo-hmac-auth -n kong-demo --ignore-not-found
+              oc delete kongconsumer demo-hmac-auth-consumer -n kong-demo --ignore-not-found
+              oc delete secret demo-hmac-auth-credential -n kong-demo --ignore-not-found
