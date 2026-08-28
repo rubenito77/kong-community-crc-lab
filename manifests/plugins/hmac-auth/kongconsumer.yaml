@@ -1,0 +1,13 @@
+apiVersion: configuration.konghq.com/v1
+kind: KongConsumer
+metadata:
+  name: demo-hmac-auth-consumer
+  namespace: kong-demo
+  annotations:
+    kubernetes.io/ingress.class: kong
+  labels:
+    app.kubernetes.io/part-of: kong-community-crc-lab
+    app.kubernetes.io/component: plugin-test
+username: demo-hmac-auth-consumer
+credentials:
+  - demo-hmac-auth-credential
