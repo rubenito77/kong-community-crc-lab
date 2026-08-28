@@ -1,0 +1,29 @@
+apiVersion: configuration.konghq.com/v1
+kind: KongConsumer
+metadata:
+  name: demo-acl-allowed-consumer
+  namespace: kong-demo
+  annotations:
+    kubernetes.io/ingress.class: kong
+  labels:
+    app.kubernetes.io/part-of: kong-community-crc-lab
+    app.kubernetes.io/component: plugin-test
+username: demo-acl-allowed-consumer
+credentials:
+  - demo-acl-allowed-key
+  - demo-acl-allowed-group
+---
+apiVersion: configuration.konghq.com/v1
+kind: KongConsumer
+metadata:
+  name: demo-acl-denied-consumer
+  namespace: kong-demo
+  annotations:
+    kubernetes.io/ingress.class: kong
+  labels:
+    app.kubernetes.io/part-of: kong-community-crc-lab
+    app.kubernetes.io/component: plugin-test
+username: demo-acl-denied-consumer
+credentials:
+  - demo-acl-denied-key
+  - demo-acl-denied-group

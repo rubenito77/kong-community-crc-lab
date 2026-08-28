@@ -1,0 +1,27 @@
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: demo-acl-key-auth
+  namespace: kong-demo
+  labels:
+    app.kubernetes.io/part-of: kong-community-crc-lab
+    app.kubernetes.io/component: plugin-test
+plugin: key-auth
+config:
+  key_names:
+    - apikey
+  hide_credentials: true
+---
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: demo-acl
+  namespace: kong-demo
+  labels:
+    app.kubernetes.io/part-of: kong-community-crc-lab
+    app.kubernetes.io/component: plugin-test
+plugin: acl
+config:
+  allow:
+    - acl-allowed
+  hide_groups_header: true
