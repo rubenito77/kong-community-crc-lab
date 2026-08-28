@@ -70,6 +70,10 @@ El Consumer quedó `Programmed=True`, el Secret fue clasificado como
 y KIC no registró errores. La evidencia no contiene username, secret ni firmas.
 Véase [Resultado HMAC](../plugin-test-results/hmac-auth-2026-08-28.md).
 
+El rollback fue completado el mismo día: se desasoció el Ingress, se eliminaron
+el plugin, Consumer y Secret, y `/transform`, `/demo` y `/demo2` volvieron
+a responder HTTP 200 sin errores de reconciliación.
+
 ## Rollback
 
 ```powershell
