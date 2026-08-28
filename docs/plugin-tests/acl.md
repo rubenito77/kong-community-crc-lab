@@ -72,6 +72,10 @@ clasificados como dos `key-auth` y dos `acl`, el PVC quedó `Bound` y KIC no
 registró errores. La evidencia no contiene API keys ni datos de Secrets. Véase
 [Resultado de ACL](../plugin-test-results/acl-2026-08-28.md).
 
+El rollback fue completado: se desasociaron ambos plugins, se eliminaron los dos
+Plugins, dos Consumers y cuatro Secrets, y las tres rutas quedaron en HTTP 200
+con KIC sin errores.
+
 ## Rollback
 
 ```powershell
