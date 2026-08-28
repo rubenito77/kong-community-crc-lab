@@ -17,6 +17,7 @@ plugin y qué recursos temporales o persistentes necesita cada Pipeline.
 - [Basic Authentication](basic-auth.md)
 - [JWT HS256](jwt.md)
 - [ACL con Key Authentication](acl.md)
+- [HMAC Authentication](hmac-auth.md)
 
 ## Dependencias comparadas
 
@@ -33,6 +34,7 @@ plugin y qué recursos temporales o persistentes necesita cada Pipeline.
 | Basic Authentication | `kong-transform-echo` | Sí | Sí | Sí | Sí | Sí | Reutiliza KongConsumer + Secret |
 | JWT HS256 | `kong-transform-echo` | 2 | Sí | Sí | Sí | Sí | Reutiliza KongConsumer + Secret |
 | ACL + Key Authentication | `kong-transform-echo` | 2 | 2 | 4 | Sí | Sí | Reutiliza KongConsumer + Secret |
+| HMAC Authentication | `kong-transform-echo` | Sí | Sí | Sí | Sí | Sí | Reutiliza KongConsumer + Secret |
 
 El PVC pertenece al PipelineRun y comparte el repositorio clonado y la evidencia
 entre Tasks. `emptyDir` se usa solamente para pasar una credencial efímera entre
