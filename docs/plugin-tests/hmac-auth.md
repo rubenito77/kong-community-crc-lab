@@ -57,6 +57,19 @@ oc get kongconsumer demo-hmac-auth-consumer -n kong-demo -o yaml
 oc get kongplugin demo-hmac-auth -n kong-demo -o yaml
 ```
 
+## Resultado real
+
+P03-05 fue aprobada el 2026-08-28 mediante el PipelineRun
+`kong-plugin-hmac-auth-ktkz9`. Las tres Tasks finalizaron en `Succeeded`; firma
+ausente, inválida y vencida devolvieron HTTP 401, y la firma válida obtuvo 200.
+`Authorization` no llegó al upstream y las rutas de control permanecieron en
+HTTP 200.
+
+El Consumer quedó `Programmed=True`, el Secret fue clasificado como
+`hmac-auth`, el desafío fue `WWW-Authenticate: hmac`, el PVC quedó `Bound`
+y KIC no registró errores. La evidencia no contiene username, secret ni firmas.
+Véase [Resultado HMAC](../plugin-test-results/hmac-auth-2026-08-28.md).
+
 ## Rollback
 
 ```powershell
