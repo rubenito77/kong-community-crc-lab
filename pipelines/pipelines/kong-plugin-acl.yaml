@@ -1,0 +1,201 @@
+apiVersion: tekton.dev/v1
+kind: Pipeline
+metadata:
+  name: kong-plugin-acl
+  namespace: kong-demo
+  labels:
+    app.kubernetes.io/part-of: kong-community-crc-lab
+spec:
+  params:
+    - name: git-url
+      type: string
+    - name: git-revision
+      type: string
+    - name: kong-proxy-url
+      type: string
+    - name: cleanup
+      type: string
+      default: "false"
+  workspaces:
+    - name: shared
+  tasks:
+    - name: clone-repository
+      taskSpec:
+        params:
+          - name: git-url
+            type: string
+          - name: git-revision
+            type: string
+        workspaces:
+          - name: source
+        steps:
+          - name: clone
+            image: docker.io/alpine/git:v2.47.2
+            env:
+              - name: HOME
+                value: /tekton/home
+              - name: GIT_URL
+                value: $(params.git-url)
+              - name: GIT_REVISION
+                value: $(params.git-revision)
+            script: |
+              #!/bin/sh
+              set -eu
+              git config --global --add safe.directory "$(workspaces.source.path)"
+              rm -rf "$(workspaces.source.path)"/*
+              git clone --depth 1 --branch "${GIT_REVISION}" "${GIT_URL}" "$(workspaces.source.path)"
+              git -C "$(workspaces.source.path)" rev-parse HEAD
+      params:
+        - name: git-url
+          value: $(params.git-url)
+        - name: git-revision
+          value: $(params.git-revision)
+      workspaces:
+        - name: source
+          workspace: shared
+
+    - name: validate-baseline
+      runAfter: [clone-repository]
+      taskSpec:
+        params:
+          - name: kong-proxy-url
+            type: string
+        steps:
+          - name: test-route
+            image: docker.io/curlimages/curl:8.12.1
+            env:
+              - name: HOME
+                value: /tekton/home
+              - name: KONG_PROXY_URL
+                value: $(params.kong-proxy-url)
+            script: |
+              #!/bin/sh
+              set -eu
+              code="$(curl -sS -o /dev/null -w '%{http_code}' "${KONG_PROXY_URL}/transform")"
+              echo "baseline /transform without ACL: HTTP ${code}"
+              test "${code}" = "200"
+      params:
+        - name: kong-proxy-url
+          value: $(params.kong-proxy-url)
+
+    - name: configure-and-test
+      runAfter: [validate-baseline]
+      taskSpec:
+        params:
+          - name: kong-proxy-url
+            type: string
+        workspaces:
+          - name: source
+          - name: evidence
+        volumes:
+          - name: ephemeral-keys
+            emptyDir: {}
+        steps:
+          - name: configure
+            image: quay.io/openshift/origin-cli:4.22
+            env:
+              - name: HOME
+                value: /tekton/home
+            volumeMounts:
+              - name: ephemeral-keys
+                mountPath: /var/run/kong-acl
+            script: |
+              #!/bin/sh
+              set -eu
+              ALLOWED_KEY="$(tr -d '-' < /proc/sys/kernel/random/uuid)"
+              DENIED_KEY="$(tr -d '-' < /proc/sys/kernel/random/uuid)"
+              umask 077
+              printf '%s' "${ALLOWED_KEY}" > /var/run/kong-acl/allowed-key
+              printf '%s' "${DENIED_KEY}" > /var/run/kong-acl/denied-key
+
+              oc create secret generic demo-acl-allowed-key -n kong-demo                 --from-literal=key="${ALLOWED_KEY}" --dry-run=client -o yaml | oc apply -f -
+              oc label secret demo-acl-allowed-key -n kong-demo                 konghq.com/credential=key-auth --overwrite
+
+              oc create secret generic demo-acl-denied-key -n kong-demo                 --from-literal=key="${DENIED_KEY}" --dry-run=client -o yaml | oc apply -f -
+              oc label secret demo-acl-denied-key -n kong-demo                 konghq.com/credential=key-auth --overwrite
+
+              oc create secret generic demo-acl-allowed-group -n kong-demo                 --from-literal=group=acl-allowed --dry-run=client -o yaml | oc apply -f -
+              oc label secret demo-acl-allowed-group -n kong-demo                 konghq.com/credential=acl --overwrite
+
+              oc create secret generic demo-acl-denied-group -n kong-demo                 --from-literal=group=acl-denied --dry-run=client -o yaml | oc apply -f -
+              oc label secret demo-acl-denied-group -n kong-demo                 konghq.com/credential=acl --overwrite
+
+              oc apply -f "$(workspaces.source.path)/manifests/plugins/acl/kongconsumers.yaml"
+              oc apply -f "$(workspaces.source.path)/manifests/plugins/acl/kongplugins.yaml"
+              oc annotate ingress kong-transform-echo -n kong-demo                 konghq.com/plugins=demo-acl-key-auth,demo-acl --overwrite
+              sleep 10
+
+          - name: test
+            image: docker.io/curlimages/curl:8.12.1
+            env:
+              - name: HOME
+                value: /tekton/home
+              - name: KONG_PROXY_URL
+                value: $(params.kong-proxy-url)
+            volumeMounts:
+              - name: ephemeral-keys
+                mountPath: /var/run/kong-acl
+            script: |
+              #!/bin/sh
+              set -eu
+              evidence="$(workspaces.evidence.path)/acl-results.txt"
+              : > "${evidence}"
+
+              missing="$(curl -sS -o /tmp/missing.body -w '%{http_code}' "${KONG_PROXY_URL}/transform")"
+              echo "missing key status=${missing}" | tee -a "${evidence}"
+              test "${missing}" = "401"
+
+              invalid="$(curl -sS -o /tmp/invalid.body -w '%{http_code}'                 -H 'apikey: invalid-laboratory-key' "${KONG_PROXY_URL}/transform")"
+              echo "invalid key status=${invalid}" | tee -a "${evidence}"
+              test "${invalid}" = "401"
+
+              ALLOWED_KEY="$(cat /var/run/kong-acl/allowed-key)"
+              allowed="$(curl -sS -o /tmp/allowed.body -w '%{http_code}'                 -H "apikey: ${ALLOWED_KEY}" "${KONG_PROXY_URL}/transform")"
+              echo "allowed consumer status=${allowed}" | tee -a "${evidence}"
+              test "${allowed}" = "200"
+              grep -q '"path"' /tmp/allowed.body
+              ! grep -qi 'apikey' /tmp/allowed.body
+              ! grep -qi 'x-consumer-groups' /tmp/allowed.body
+
+              DENIED_KEY="$(cat /var/run/kong-acl/denied-key)"
+              denied="$(curl -sS -o /tmp/denied.body -w '%{http_code}'                 -H "apikey: ${DENIED_KEY}" "${KONG_PROXY_URL}/transform")"
+              echo "denied consumer status=${denied}" | tee -a "${evidence}"
+              test "${denied}" = "403"
+
+              for path in demo demo2; do
+                control="$(curl -sS -o /dev/null -w '%{http_code}' "${KONG_PROXY_URL}/${path}")"
+                echo "control=/${path} status=${control}" | tee -a "${evidence}"
+                test "${control}" = "200"
+              done
+
+              rm -f /var/run/kong-acl/allowed-key /var/run/kong-acl/denied-key
+              echo 'PASS: autenticacion 401, grupo permitido 200, grupo no permitido 403 y credenciales ocultadas' | tee -a "${evidence}"
+      params:
+        - name: kong-proxy-url
+          value: $(params.kong-proxy-url)
+      workspaces:
+        - name: source
+          workspace: shared
+        - name: evidence
+          workspace: shared
+
+  finally:
+    - name: cleanup
+      when:
+        - input: $(params.cleanup)
+          operator: in
+          values: ["true"]
+      taskSpec:
+        steps:
+          - name: remove-authz
+            image: quay.io/openshift/origin-cli:4.22
+            env:
+              - name: HOME
+                value: /tekton/home
+            script: |
+              #!/bin/sh
+              set -eu
+              oc annotate ingress kong-transform-echo -n kong-demo konghq.com/plugins- || true
+              oc delete kongplugin demo-acl-key-auth demo-acl -n kong-demo --ignore-not-found
+              oc delete kongconsumer demo-acl-allowed-consumer demo-acl-denied-consumer -n kong-demo --ignore-not-found
+              oc delete secret demo-acl-allowed-key demo-acl-denied-key                 demo-acl-allowed-group demo-acl-denied-group -n kong-demo --ignore-not-found
