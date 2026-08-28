@@ -1,0 +1,16 @@
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: demo-hmac-auth
+  namespace: kong-demo
+  labels:
+    app.kubernetes.io/part-of: kong-community-crc-lab
+    app.kubernetes.io/component: plugin-test
+plugin: hmac-auth
+config:
+  algorithms:
+    - hmac-sha256
+  enforce_headers:
+    - date
+  clock_skew: 30
+  hide_credentials: true
