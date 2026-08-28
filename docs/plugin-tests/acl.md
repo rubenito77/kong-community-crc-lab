@@ -60,6 +60,18 @@ oc get kongconsumer demo-acl-allowed-consumer demo-acl-denied-consumer -n kong-d
 oc get kongplugin demo-acl-key-auth demo-acl -n kong-demo
 ```
 
+## Resultado real
+
+P03-04 fue aprobada el 2026-08-28 mediante el PipelineRun
+`kong-plugin-acl-ntxxc`. Las tres Tasks finalizaron en `Succeeded`; sin key y
+con key inválida se obtuvo HTTP 401, el Consumer permitido obtuvo 200 y el
+Consumer fuera del grupo recibió 403. `/demo` y `/demo2` permanecieron en 200.
+
+Ambos Consumers quedaron `Programmed=True`, los cuatro Secrets fueron
+clasificados como dos `key-auth` y dos `acl`, el PVC quedó `Bound` y KIC no
+registró errores. La evidencia no contiene API keys ni datos de Secrets. Véase
+[Resultado de ACL](../plugin-test-results/acl-2026-08-28.md).
+
 ## Rollback
 
 ```powershell
