@@ -13,6 +13,9 @@ prueba y el estado tras rollback. Ejecutar Tekton no genera estos mapas:
 se mantienen como JSON y se regeneran con el script indicado abajo.
 Este piloto solo incluye la arquitectura base; no convierte los plugins anteriores.
 
+El [plan de adopción](adoption-plan.md) define la secuencia y los criterios
+para nuevos plugins y conversiones anteriores.
+
 ## Abrir el mapa
 
 Después del merge y de actualizar el clon, en PowerShell:

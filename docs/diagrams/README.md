@@ -5,7 +5,7 @@ plugin y qué recursos temporales o persistentes necesita cada Pipeline.
 
 ## Índice
 
-- [Piloto Archify: arquitectura interactiva CRC](../archify/README.md) — complementa los Mermaid; revisión visual pendiente.
+- [Piloto Archify: arquitectura interactiva CRC](../archify/README.md) — complementa los Mermaid; revisión manual recibida; validación multirresolución pendiente.
 
 - [Arquitectura general y ciclo de vida](platform-and-plugin-lifecycle.md)
 - [Rate Limiting](rate-limiting.md)

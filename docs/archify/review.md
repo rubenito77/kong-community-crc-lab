@@ -19,23 +19,28 @@
 
 ## Navegador y revisión perceptual
 
-- browser_evidence: skipped.
+- browser_evidence: skipped (automatización).
 - Motivo del recibo oficial: viewer/chrome-unavailable, salida 2.
 - No se midieron viewports ni se obtuvieron capturas automatizadas.
-- El usuario aportó capturas del HTML anterior en claro y oscuro y confirmó
-  que no veía barra de desplazamiento. Se observó texto pequeño; estas
-  capturas no validan el nuevo hash ni todas las resoluciones requeridas.
-- La descarga de Chromium se interrumpió después de agotar el tiempo de
-  espera; no se usó una captura antigua como evidencia.
-- Revisión visual perceptual: pendiente, no aprobada.
+- Revisión manual de la versión compacta: capturas aportadas por Rubén en
+  tema claro y oscuro, con componentes completos y sin solapamientos visibles.
+- Tras solicitar pruebas de búsqueda, zoom y apertura/cierre de paneles,
+  Rubén confirmó: «funciona correctamente».
+- Alcance: ventana del usuario; no se confirmó la matriz de cuatro resoluciones.
+- La revisión corresponde a la versión entregada en el commit
+  0e82d89d835ce2dd9d098f1ee6c47477a53a2d52. El hash del HTML generado figura
+  arriba; no se midió el hash de la copia local del usuario.
+- Revisión perceptual manual: satisfactoria para las capturas recibidas.
+- Validación automatizada y multirresolución: pendientes, no aprobadas.
 
-Por este motivo el PR se entrega como borrador. Antes de marcarlo listo:
+## Pendiente para completar la revisión prevista
 
-1. Abrir el HTML local en Chrome/Edge y revisar textos y conexiones.
-2. Ejecutar visual-check con Chrome/Chromium según la guía.
-3. Revisar tema claro y oscuro y las cuatro resoluciones requeridas.
-4. Comprobar búsqueda/foco y que el visor cierre sus paneles correctamente.
-5. Registrar los resultados vinculados al hash exacto del HTML.
+El PR conserva el estado borrador hasta completar la matriz documentada o
+acordar explícitamente aceptar el piloto con este alcance de revisión limitado.
+
+1. Ejecutar visual-check con Chrome/Chromium según la guía.
+2. Revisar 1440×900, 1600×1000, 1920×1080 y 2048×1320.
+3. Registrar resultados y capturas asociados al hash exacto del HTML.
 
 No se modificó OpenShift, no se publicaron sitios ni se instalaron skills
 globales. Los diagramas Mermaid y las pruebas de plugins siguen intactos.
