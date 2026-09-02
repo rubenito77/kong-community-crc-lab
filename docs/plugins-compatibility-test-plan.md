@@ -141,7 +141,7 @@ Las credenciales se crearán como Secrets y no se publicarán valores sensibles 
 
 | ID | Plugin | Prueba | Evidencia esperada |
 |---|---|---|---|
-| P04-01 | `prometheus` | Generar tráfico y consultar métricas | **Preparada; pendiente de ejecución:** contadores HTTP y latencias por ruta, controles aislados, sin Prometheus Server. [Guía](plugin-tests/prometheus.md). |
+| P04-01 | `prometheus` | Generar tráfico y consultar métricas | **Aprobada funcionalmente 2026-09-02; rollback pendiente:** contador HTTP y tres histogramas con incremento de 10; controles aislados, sin Prometheus Server. [Evidencia](plugin-test-results/prometheus-2026-09-02.md). |
 | P04-02 | `http-log` | Enviar logs a un receptor HTTP temporal | El receptor obtiene el evento de acceso. |
 | P04-03 | `opentelemetry` | Enviar spans a un collector OTLP | Traza con proxy latency y upstream latency. |
 | P04-04 | `statsd` | Enviar métricas a receptor StatsD | Métricas recibidas con nombres esperados. |
