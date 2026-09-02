@@ -1,6 +1,9 @@
 # P04-02: HTTP Log
 
-Estado: preparado; ejecución en CRC y revisión visual del mapa pendientes.
+Estado: aprobado el 2026-09-02; rollback pendiente.
+[Evidencia real](../plugin-test-results/http-log-2026-09-02.md): PipelineRun
+kong-plugin-http-log-kb6pm, cinco eventos correlacionados y controles aislados.
+Revisión visual completa del mapa aún pendiente; se recibió captura en oscuro.
 Kong Community 3.9.x DB-less; solo /transform. No instalar Prometheus, Loki ni Grafana.
 
 ## Diseño y evidencia
