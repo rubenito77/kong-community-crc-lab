@@ -2,8 +2,9 @@
 
 ## Estado y alcance
 
-Preparado; pendiente de ejecución y aprobación en CRC. No hay todavía un
-resultado funcional aprobado. La línea base aportada el 2026-09-02 confirmó
+**Aprobado funcionalmente el 2026-09-02; rollback pendiente.**
+
+La línea base aportada el 2026-09-02 confirmó
 Kong 3.9.3, `/status` y `/metrics` en HTTP 200 por el puerto 8100, sin KongPlugin
 ni KongClusterPlugin configurados.
 
@@ -11,6 +12,17 @@ El plugin se asocia únicamente a `Ingress/kong-transform-echo` en `kong-demo`.
 Se activan `status_code_metrics` y `latency_metrics`; no se instrumentan
 Consumers, bandwidth ni upstream health. No se necesita Prometheus Server
 ni Grafana: esta prueba no conserva series históricas ni ofrece PromQL.
+
+## Resultado real
+
+El PipelineRun `kong-plugin-prometheus-mddlm` finalizó en `True / Succeeded`.
+Las dos Tasks fueron exitosas. El contador HTTP y los tres histogramas
+incrementaron 10 observaciones/solicitudes; las rutas de control permanecieron
+en 200 sin incrementos por ruta. La consulta filtrada de logs del KIC activo
+no mostró coincidencias de errores. El PVC `pvc-153765792f` quedó Bound.
+
+El plugin y el Service temporal siguen activos; todavía no se validó el
+rollback. Véase [evidencia de ejecución](../plugin-test-results/prometheus-2026-09-02.md).
 
 ## Recursos y permisos
 
@@ -121,8 +133,9 @@ de 2 segundos; cada petición tiene timeout de 15 segundos.
 El PVC guarda el clon en `repository/` y evidencia en `evidence/prometheus/`:
 snapshots `.prom`, línea base y reporte de incrementos. No se generan credenciales.
 Los snapshots contienen nombres internos y métricas del nodo: revisarlos antes
-de publicar. El reporte de resultados real se agregará tras recibir evidencia
-de ejecución; no se crea un archivo de aprobación anticipada.
+de publicar. El [reporte de resultados](../plugin-test-results/prometheus-2026-09-02.md)
+registra la evidencia aportada de esta ejecución; los snapshots del PVC no
+fueron extraídos ni publicados en este PR.
 
 ## Rollback manual, también si falla la Pipeline
 
