@@ -8,10 +8,12 @@
 - Ejecutor: Node.js 24.19.0.
 - Salida: docs/archify/crc.architecture.html.
 - Perfil: showcase, 9/9 checks, cero errores y cero advertencias.
-- correction_rounds: 1 (ajuste de ancho para legibilidad).
-- specification_sha256: e0c4df1fbb76339b1c59c236b9fae90f8bcac51df8ee79d8df53997484208e7f.
-- artifact_sha256: 193a2a876d64b989aee806483281c03fafa3cac6de6eace7f398505b67b2457a.
-- Tamaños: JSON 2870 bytes; HTML 713095 bytes.
+- correction_rounds: 2 (composición compacta tras capturas del usuario).
+- specification_sha256: 37ae3eddf756e14620e8c5a9a72251f88368725e438ebaa3c43a35c457a7ff71.
+- artifact_sha256: fc4d7aee8655688ce4bac16f79271a4a8de490ab5e2bddaf98d810b04a890580.
+- Tamaños: JSON 2908 bytes; HTML 712859 bytes.
+- ViewBox reducido de 1390×790 a 1100×600 para aumentar la escala
+  efectiva del texto; etiquetas recolocadas según diagnósticos.
 
 [Recibo de deliver](delivery.json).
 
@@ -19,7 +21,10 @@
 
 - browser_evidence: skipped.
 - Motivo del recibo oficial: viewer/chrome-unavailable, salida 2.
-- No se midieron viewports ni se obtuvieron capturas del navegador.
+- No se midieron viewports ni se obtuvieron capturas automatizadas.
+- El usuario aportó capturas del HTML anterior en claro y oscuro y confirmó
+  que no veía barra de desplazamiento. Se observó texto pequeño; estas
+  capturas no validan el nuevo hash ni todas las resoluciones requeridas.
 - La descarga de Chromium se interrumpió después de agotar el tiempo de
   espera; no se usó una captura antigua como evidencia.
 - Revisión visual perceptual: pendiente, no aprobada.

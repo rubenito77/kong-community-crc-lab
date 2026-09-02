@@ -6,12 +6,12 @@
   "input": "docs/archify/crc.architecture.json",
   "output": "docs/archify/crc.architecture.html",
   "specification": {
-    "sha256": "e0c4df1fbb76339b1c59c236b9fae90f8bcac51df8ee79d8df53997484208e7f",
-    "bytes": 2870
+    "sha256": "37ae3eddf756e14620e8c5a9a72251f88368725e438ebaa3c43a35c457a7ff71",
+    "bytes": 2908
   },
   "artifact": {
-    "sha256": "193a2a876d64b989aee806483281c03fafa3cac6de6eace7f398505b67b2457a",
-    "bytes": 713095
+    "sha256": "fc4d7aee8655688ce4bac16f79271a4a8de490ab5e2bddaf98d810b04a890580",
+    "bytes": 712859
   },
   "validation": {
     "checksPassed": 9,

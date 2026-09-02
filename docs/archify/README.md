@@ -5,6 +5,14 @@ El mapa es documentación de arquitectura, no descubrimiento ni monitoreo
 del cluster. No representa plugins temporales ya revertidos, PostgreSQL,
 Prometheus Server ni Grafana.
 
+## Mapas de plugins
+
+Este estilo se puede incorporar gradualmente a cada laboratorio, conservando
+Mermaid. Cada mapa deberá documentar dónde se aplica el plugin, el flujo de
+prueba y el estado tras rollback. Ejecutar Tekton no genera estos mapas:
+se mantienen como JSON y se regeneran con el script indicado abajo.
+Este piloto solo incluye la arquitectura base; no convierte los plugins anteriores.
+
 ## Abrir el mapa
 
 Después del merge y de actualizar el clon, en PowerShell:
