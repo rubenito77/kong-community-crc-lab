@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Kong Community · CRC DB-less",
+    "quality_profile": "showcase",
+    "viewBox": [1100, 600]
+  },
+  "components": [
+    {"id":"browser","type":"external","label":"Navegador","sublabel":"Cliente HTTPS","pos":[30,250],"size":[140,76]},
+    {"id":"router","type":"cloud","label":"Router OpenShift","sublabel":"Route: kong-proxy","tag":"TLS edge","pos":[280,250],"size":[170,76]},
+    {"id":"proxy-service","type":"cloud","label":"Service del proxy","sublabel":"kong-kong-proxy :80","tag":"namespace kong","pos":[550,250],"size":[190,76]},
+    {"id":"gateway","type":"backend","label":"Kong Gateway","sublabel":"Proxy :8000 · DB-less","tag":"namespace kong","pos":[850,250],"size":[190,76]},
+    {"id":"resources","type":"cloud","label":"API Kubernetes","sublabel":"Ingress y Services","tag":"IngressClass: kong","pos":[550,40],"size":[190,76]},
+    {"id":"kic","type":"backend","label":"Kong Ingress Controller","sublabel":"Configura el Gateway","tag":"Mismo Pod que Kong","pos":[825,40],"size":[240,76]},
+    {"id":"demo","type":"backend","label":"kong-echo","sublabel":"Service + Pod :5678","tag":"namespace kong-demo","pos":[250,470],"size":[185,76]},
+    {"id":"demo2","type":"backend","label":"kong-echo-2","sublabel":"Service + Pod :5678","tag":"namespace kong-demo","pos":[580,470],"size":[185,76]},
+    {"id":"transform","type":"backend","label":"kong-transform-echo","sublabel":"Service + Pod :8080","tag":"namespace kong-demo","pos":[860,470],"size":[215,76]}
+  ],
+  "connections": [
+    {"id":"https","from":"browser","to":"router","label":"HTTPS","variant":"emphasis"},
+    {"id":"route-backend","from":"router","to":"proxy-service","label":"HTTP :80","variant":"emphasis"},
+    {"id":"proxy-port","from":"proxy-service","to":"gateway","label":"HTTP :8000","variant":"emphasis"},
+    {"id":"watch","from":"resources","to":"kic","label":"Observación API","variant":"dashed"},
+    {"id":"configure","from":"kic","to":"gateway","label":"Admin API local","variant":"dashed","fromSide":"bottom","toSide":"top","labelDy":24},
+    {"id":"path-demo","from":"gateway","to":"demo","label":"/demo","fromSide":"bottom","toSide":"top"},
+    {"id":"path-demo2","from":"gateway","to":"demo2","label":"/demo2","fromSide":"bottom","toSide":"top"},
+    {"id":"path-transform","from":"gateway","to":"transform","label":"/transform","fromSide":"bottom","toSide":"top","labelDy":24,"labelDx":40}
+  ],
+  "cards": [
+    {"dot":"cyan","title":"Tráfico","items":["Una Route expone las tres aplicaciones.","Service + Pod agrupa el backend lógico."]},
+    {"dot":"violet","title":"Configuración","items":["KIC no procesa las peticiones del cliente.","Admin API local; sin PostgreSQL."]},
+    {"dot":"emerald","title":"Alcance","items":["Arquitectura del repositorio; no monitoreo.","Plugins temporales omitidos tras rollback."]}
+  ]
+}

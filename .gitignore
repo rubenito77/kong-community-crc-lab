@@ -5,6 +5,10 @@
 .DS_Store
 Thumbs.db
 
+# Local Archify browser evidence; reviewed summary is kept in docs/archify/review.md
+docs/archify/*.visual-check*
+docs/archify/.archify-delivery-*/
+
 # Local Kubernetes credentials
 kubeconfig
 *.kubeconfig
@@ -18,4 +22,3 @@ secrets/
 # IDEs
 .idea/
 .vscode/
-
