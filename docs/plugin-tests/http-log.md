@@ -1,6 +1,7 @@
 # P04-02: HTTP Log
 
-Estado: aprobado el 2026-09-02; rollback pendiente.
+Estado: aprobado y revertido; evidencia de la ejecución 2026-09-02.
+Rollback confirmado: plugin y receptor eliminados, Ingress limpio y tres rutas HTTP 200.
 [Evidencia real](../plugin-test-results/http-log-2026-09-02.md): PipelineRun
 kong-plugin-http-log-kb6pm, cinco eventos correlacionados y controles aislados.
 Revisión visual completa del mapa aún pendiente; se recibió captura en oscuro.
