@@ -26,21 +26,24 @@
   tema claro y oscuro, con componentes completos y sin solapamientos visibles.
 - Tras solicitar pruebas de búsqueda, zoom y apertura/cierre de paneles,
   Rubén confirmó: «funciona correctamente».
-- Alcance: ventana del usuario; no se confirmó la matriz de cuatro resoluciones.
+- Después de solicitar la matriz 1440×900, 1600×1000, 1920×1080 y
+  2048×1320 en ambos temas, Rubén confirmó: «funciono correctamente continuemos».
+- Resultado multirresolución: satisfactorio según reporte manual del usuario;
+  no se recibieron capturas adicionales por resolución.
 - La revisión corresponde a la versión entregada en el commit
   0e82d89d835ce2dd9d098f1ee6c47477a53a2d52. El hash del HTML generado figura
   arriba; no se midió el hash de la copia local del usuario.
 - Revisión perceptual manual: satisfactoria para las capturas recibidas.
-- Validación automatizada y multirresolución: pendientes, no aprobadas.
+- Validación multirresolución manual: confirmada por el usuario.
+- Validación automatizada: skipped; no se declara aprobada.
 
-## Pendiente para completar la revisión prevista
+## Cierre de revisión del piloto
 
-El PR conserva el estado borrador hasta completar la matriz documentada o
-acordar explícitamente aceptar el piloto con este alcance de revisión limitado.
-
-1. Ejecutar visual-check con Chrome/Chromium según la guía.
-2. Revisar 1440×900, 1600×1000, 1920×1080 y 2048×1320.
-3. Registrar resultados y capturas asociados al hash exacto del HTML.
+La revisión manual solicitada queda cerrada según las capturas previas y la
+confirmación del usuario. El HTML no cambia en este cierre documental.
+La comprobación automatizada con visual-check sigue sin ejecutarse por falta
+de Chrome y se mantiene registrada por separado; no se equipara a una prueba
+automatizada aprobada.
 
 No se modificó OpenShift, no se publicaron sitios ni se instalaron skills
 globales. Los diagramas Mermaid y las pruebas de plugins siguen intactos.

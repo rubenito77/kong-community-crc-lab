@@ -8,7 +8,7 @@ No se convierte todo el catálogo en el piloto de arquitectura.
 
 ## Secuencia
 
-1. Integrar el piloto CRC después de cerrar su revisión pendiente.
+1. Integrar el piloto CRC con la revisión manual completada.
 2. En el próximo laboratorio, añadir el mapa Archify junto con manifiestos,
    Pipeline, guía y Mermaid. No declarar la prueba aprobada antes de ejecutarla.
 3. Convertir los laboratorios anteriores por grupos pequeños, revisando cada
@@ -37,7 +37,7 @@ de plugin.
 
 ## Estado inicial
 
-- Arquitectura CRC: implementada en PR #39; revisión manual recibida,
-  matriz multirresolución pendiente.
+- Arquitectura CRC: implementada en PR #39; revisión manual y matriz
+  multirresolución confirmadas por el usuario; automatización skipped.
 - Nuevos plugins: incorporación acordada para los siguientes laboratorios.
 - Plugins anteriores: conversión pendiente; sus Mermaid se conservan.
