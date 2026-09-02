@@ -2,11 +2,11 @@
 
 ## Estado
 
-**Aprobado funcionalmente el 2026-09-02; rollback pendiente.**
+**Aprobado y revertido el 2026-09-02.**
 
 Evidencia de consola aportada por el operador en CRC. No se ejecutaron
 comandos contra el cluster desde la herramienta de documentación.
-La aprobación del ciclo completo requiere registrar el rollback.
+El ciclo completo queda cerrado con la evidencia de rollback aportada.
 
 ## Ejecución
 
@@ -47,7 +47,7 @@ Los incrementos de los histogramas son cantidades de observaciones, no
 valores de latencia en milisegundos. No se midieron percentiles ni se
 validó almacenamiento histórico.
 
-## Recursos inspeccionados
+## Recursos inspeccionados antes del rollback
 
 - `KongPlugin/demo-prometheus` en `kong-demo`:
   `status_code_metrics=true`, `latency_metrics=true`,
@@ -80,18 +80,34 @@ No se generaron ni publicaron credenciales. El PVC conserva clon y evidencia
 según el diseño de la Pipeline. Este reporte resume las salidas aportadas:
 los snapshots .prom no fueron extraídos ni revisados directamente.
 
-## Rollback pendiente
+## Rollback completado
 
-1. Confirmar que la anotación contiene únicamente demo-prometheus.
-2. Desasociar el plugin del Ingress.
-3. Eliminar KongPlugin/demo-prometheus.
-4. Esperar reconciliación y verificar las tres rutas en 200 y logs del KIC.
-5. Eliminar Service/kong-lab-prometheus-metrics en kong.
-6. Confirmar NotFound para ambos recursos y el Ingress sin plugins.
+Evidencia de consola aportada por el operador el 2026-09-02:
 
-Conservar PipelineRun y PVC como evidencia; no eliminar el Service
-kong-kong-metrics de KIC. El endpoint de Status API puede seguir exponiendo
-métricas generales después del rollback.
+| Comprobación | Resultado |
+|---|---|
+| Asociación previa del Ingress | Únicamente demo-prometheus |
+| Desasociación del Ingress | Annotated |
+| Ingress posterior | plugins= strip-path=true |
+| KongPlugin/demo-prometheus en kong-demo | Deleted y luego NotFound |
+| /transform | HTTP 200 |
+| /demo | HTTP 200 |
+| /demo2 | HTTP 200 |
+| Service/kong-lab-prometheus-metrics en kong | Deleted y luego NotFound |
+| Logs KIC, --since=5m, filtro error/failed/invalid/rejected | Sin coincidencias |
+
+La consulta de logs seleccionó el pod activo
+`kong-kong-66cd4f5c6b-9qvpd` entre los dos pods existentes.
+El mensaje de selección no es un error de reconciliación.
+
+Los comandos de rollback no eliminaron la Pipeline, el PipelineRun ni el PVC
+de evidencia. Tampoco eliminaron el Service existente `kong-kong-metrics`
+de KIC. El plugin y el Service temporal pueden recrearse desde Git.
+
+No se consultó /metrics después del rollback en la evidencia aportada:
+no se afirma que el endpoint haya desaparecido ni que se borraran sus
+métricas. La verificación de cierre se basa en la desasociación, la eliminación
+de los dos recursos temporales y las comprobaciones HTTP y de logs.
 
 [Procedimiento PowerShell/Linux](../plugin-tests/prometheus.md#rollback-manual-también-si-falla-la-pipeline).
 [Diagrama](../diagrams/prometheus.md).
