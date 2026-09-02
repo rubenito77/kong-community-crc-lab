@@ -14,3 +14,4 @@ resources:
   - pipelines/kong-plugin-jwt.yaml
   - pipelines/kong-plugin-acl.yaml
   - pipelines/kong-plugin-hmac-auth.yaml
+  - pipelines/kong-plugin-prometheus.yaml
