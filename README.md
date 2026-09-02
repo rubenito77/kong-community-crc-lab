@@ -133,6 +133,7 @@ El segundo comando crea o actualiza el ServiceAccount y su RBAC namespace-scoped
 - [Compatibilidad y plan de pruebas de plugins](docs/plugins-compatibility-test-plan.md)
 - [Pruebas automatizadas con OpenShift Pipelines](docs/openshift-pipelines.md)
 - [Diagramas de arquitectura y flujo de plugins](docs/diagrams/README.md)
+- [Piloto Archify: mapa interactivo de arquitectura CRC](docs/archify/README.md)
 - [Rate Limiting](docs/plugin-tests/rate-limiting.md)
 - [Correlation ID](docs/plugin-tests/correlation-id.md)
 - [Request/Response Transformers](docs/plugin-tests/transformers.md)

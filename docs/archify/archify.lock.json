@@ -1,0 +1,8 @@
+{
+  "repository": "https://github.com/tt-a1i/archify.git",
+  "revision": "06dd052602dd9a369e4d034e24faef0917b5a60c",
+  "packageVersion": "2.17.0-dev.1",
+  "sourceRepository": "https://github.com/rubenito77/kong-community-crc-lab",
+  "sourceRevision": "308550c3e3dc6c83ef5c37935bfabe99e8f80848",
+  "updateCheckDisabled": true
+}

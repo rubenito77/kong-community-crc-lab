@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "command": "deliver",
+  "type": "architecture",
+  "input": "docs/archify/crc.architecture.json",
+  "output": "docs/archify/crc.architecture.html",
+  "specification": {
+    "sha256": "e0c4df1fbb76339b1c59c236b9fae90f8bcac51df8ee79d8df53997484208e7f",
+    "bytes": 2870
+  },
+  "artifact": {
+    "sha256": "193a2a876d64b989aee806483281c03fafa3cac6de6eace7f398505b67b2457a",
+    "bytes": 713095
+  },
+  "validation": {
+    "checksPassed": 9,
+    "checkCount": 9,
+    "compositionProfile": "showcase",
+    "compositionStatus": "pass",
+    "errors": 0,
+    "warnings": 0
+  },
+  "archifyRevision": "06dd052602dd9a369e4d034e24faef0917b5a60c"
+}
