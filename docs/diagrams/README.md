@@ -19,6 +19,8 @@ plugin y qué recursos temporales o persistentes necesita cada Pipeline.
 - [ACL con Key Authentication](acl.md)
 - [HMAC Authentication](hmac-auth.md)
 
+- [Prometheus](prometheus.md)
+
 ## Dependencias comparadas
 
 | Prueba | Ingress objetivo | KongPlugin | Consumer | Secret | PVC Tekton | `emptyDir` | RBAC especial |
@@ -35,6 +37,7 @@ plugin y qué recursos temporales o persistentes necesita cada Pipeline.
 | JWT HS256 | `kong-transform-echo` | 2 | Sí | Sí | Sí | Sí | Reutiliza KongConsumer + Secret |
 | ACL + Key Authentication | `kong-transform-echo` | 2 | 2 | 4 | Sí | Sí | Reutiliza KongConsumer + Secret |
 | HMAC Authentication | `kong-transform-echo` | Sí | Sí | Sí | Sí | Sí | Reutiliza KongConsumer + Secret |
+| Prometheus | `kong-transform-echo` | Sí | No | No | Sí | No | RBAC existente; Service manual en kong |
 
 El PVC pertenece al PipelineRun y comparte el repositorio clonado y la evidencia
 entre Tasks. `emptyDir` se usa solamente para pasar una credencial efímera entre
