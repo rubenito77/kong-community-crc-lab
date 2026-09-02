@@ -2,7 +2,7 @@
 
 ## Estado y alcance
 
-**Aprobado funcionalmente el 2026-09-02; rollback pendiente.**
+**Aprobado y revertido el 2026-09-02.**
 
 La línea base aportada el 2026-09-02 confirmó
 Kong 3.9.3, `/status` y `/metrics` en HTTP 200 por el puerto 8100, sin KongPlugin
@@ -21,8 +21,10 @@ incrementaron 10 observaciones/solicitudes; las rutas de control permanecieron
 en 200 sin incrementos por ruta. La consulta filtrada de logs del KIC activo
 no mostró coincidencias de errores. El PVC `pvc-153765792f` quedó Bound.
 
-El plugin y el Service temporal siguen activos; todavía no se validó el
-rollback. Véase [evidencia de ejecución](../plugin-test-results/prometheus-2026-09-02.md).
+El rollback quedó validado: Ingress sin plugins y con `strip-path=true`,
+KongPlugin y Service temporal eliminados (NotFound), tres rutas en HTTP 200
+y consulta filtrada del KIC activo sin coincidencias de errores.
+Véase [evidencia de ejecución y rollback](../plugin-test-results/prometheus-2026-09-02.md).
 
 ## Recursos y permisos
 
