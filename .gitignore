@@ -4,6 +4,8 @@
 *.bak
 .DS_Store
 Thumbs.db
+__pycache__/
+*.pyc
 
 # Local Archify browser evidence; reviewed summary is kept in docs/archify/review.md
 docs/archify/*.visual-check*

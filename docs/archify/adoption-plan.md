@@ -31,13 +31,13 @@ Mantener JSON editable y HTML generado, versión fijada de Archify, recibo
 de generación y revisión visual. No editar el HTML manualmente.
 Enlazar cada mapa desde su guía y los índices.
 La generación no ocurre automáticamente al ejecutar Tekton; tampoco es
-monitoreo ni descubrimiento del cluster. El script actual genera únicamente
-el piloto CRC: deberá ampliarse explícitamente al incorporar el primer mapa
-de plugin.
+monitoreo ni descubrimiento del cluster. El script admite los mapas crc y
+http-log mediante un selector explícito; el valor por defecto sigue siendo crc.
 
 ## Estado inicial
 
 - Arquitectura CRC: implementada en PR #39; revisión manual y matriz
   multirresolución confirmadas por el usuario; automatización skipped.
 - Nuevos plugins: incorporación acordada para los siguientes laboratorios.
+- HTTP Log: mapa preparado junto al laboratorio; ejecución y revisión visual pendientes.
 - Plugins anteriores: conversión pendiente; sus Mermaid se conservan.

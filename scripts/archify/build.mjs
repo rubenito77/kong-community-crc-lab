@@ -8,7 +8,7 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const lock = JSON.parse(readFileSync(resolve(root, 'docs/archify/archify.lock.json'), 'utf8'));
 const checkout = process.argv[2];
 if (!checkout) {
-  console.error('Usage: node scripts/archify/build.mjs <archify-checkout>');
+  console.error('Usage: node scripts/archify/build.mjs <archify-checkout> [crc|http-log]');
   process.exit(2);
 }
 const toolRoot = resolve(checkout);
@@ -31,8 +31,10 @@ if (run('git', ['status', '--porcelain', '--', 'archify'], toolRoot).trim()) {
 const pkg = JSON.parse(readFileSync(resolve(toolRoot, 'archify/package.json'), 'utf8'));
 if (pkg.version !== lock.packageVersion) throw new Error('Unexpected Archify package version');
 const cli = resolve(toolRoot, 'archify/bin/archify.mjs');
-const source = 'docs/archify/crc.architecture.json';
-const output = 'docs/archify/crc.architecture.html';
+const diagram = process.argv[3] || 'crc';
+if (!['crc', 'http-log'].includes(diagram)) throw new Error('Unknown diagram');
+const source = `docs/archify/${diagram}.architecture.json`;
+const output = `docs/archify/${diagram}.architecture.html`;
 const validation = JSON.parse(run(process.execPath,
   [cli, 'validate', 'architecture', source, '--quality', 'showcase', '--json']));
 if (!validation.ok || validation.checks.length !== 9 ||
@@ -46,7 +48,8 @@ if (!delivery.ok) throw new Error('Delivery did not pass');
 delivery.input = source;
 delivery.output = output;
 delivery.archifyRevision = lock.revision;
-writeFileSync(resolve(root, 'docs/archify/delivery.json'), JSON.stringify(delivery, null, 2) + '\n');
+const receipt = diagram === 'crc' ? 'delivery.json' : `${diagram}.delivery.json`;
+writeFileSync(resolve(root, 'docs/archify', receipt), JSON.stringify(delivery, null, 2) + '\n');
 console.log('PASS: 9/9 showcase checks; 0 errors; 0 warnings');
 console.log('HTML: ' + relative(root, resolve(root, output)));
 console.log('Browser inspection is separate: see docs/archify/README.md');

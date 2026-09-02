@@ -1,0 +1,25 @@
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: demo-http-log
+  namespace: kong-demo
+  labels:
+    kong-lab/plugin: http-log
+plugin: http-log
+config:
+  http_endpoint: http://http-log-receiver.kong-demo.svc.cluster.local:8080/logs
+  method: POST
+  timeout: 3000
+  queue:
+    max_batch_size: 1
+    max_coalescing_delay: 1
+    max_retry_time: 15
+  custom_fields_by_lua:
+    lab_id: return kong.request.get_header("x-lab-http-log-id")
+    request.headers: return nil
+    response.headers: return nil
+    request.querystring: return nil
+    request.url: return nil
+    client_ip: return nil
+    authenticated_entity: return nil
+    consumer: return nil

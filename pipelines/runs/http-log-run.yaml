@@ -1,0 +1,34 @@
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  generateName: kong-plugin-http-log-
+  namespace: kong-demo
+  labels:
+    kong-lab/plugin: http-log
+spec:
+  pipelineRef:
+    name: kong-plugin-http-log
+  taskRunTemplate:
+    serviceAccountName: kong-plugin-tester
+  timeouts:
+    pipeline: 10m0s
+  params:
+    - name: git-url
+      value: https://github.com/rubenito77/kong-community-crc-lab.git
+    - name: git-revision
+      value: main
+    - name: kong-proxy-url
+      value: http://kong-kong-proxy.kong.svc.cluster.local
+    - name: receiver-url
+      value: http://http-log-receiver.kong-demo.svc.cluster.local:8080
+  workspaces:
+    - name: shared
+      volumeClaimTemplate:
+        metadata:
+          labels:
+            kong-lab/plugin: http-log
+        spec:
+          accessModes: [ReadWriteOnce]
+          resources:
+            requests:
+              storage: 100Mi

@@ -22,6 +22,7 @@ plugin y qué recursos temporales o persistentes necesita cada Pipeline.
 - [HMAC Authentication](hmac-auth.md)
 
 - [Prometheus](prometheus.md)
+- [HTTP Log](http-log.md) — [mapa Archify](../archify/http-log.architecture.html).
 
 ## Dependencias comparadas
 
