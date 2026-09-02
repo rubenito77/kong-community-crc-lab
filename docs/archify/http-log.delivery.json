@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "command": "deliver",
+  "type": "architecture",
+  "input": "docs/archify/http-log.architecture.json",
+  "output": "docs/archify/http-log.architecture.html",
+  "specification": {
+    "sha256": "0309b5134a10adddae88a686b06a822c78130c1c6f3f55ac2b7cd9f554e39e66",
+    "bytes": 1955
+  },
+  "artifact": {
+    "sha256": "7a2855832465cf069421e1b606cfa48af8934a5596c6c90d52060cbf58e1b7f4",
+    "bytes": 706234
+  },
+  "validation": {
+    "checksPassed": 9,
+    "checkCount": 9,
+    "compositionProfile": "showcase",
+    "compositionStatus": "pass",
+    "errors": 0,
+    "warnings": 0
+  },
+  "archifyRevision": "06dd052602dd9a369e4d034e24faef0917b5a60c"
+}

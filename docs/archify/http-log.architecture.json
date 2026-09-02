@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {"title": "HTTP Log · laboratorio CRC", "quality_profile": "showcase", "viewBox": [1100, 650]},
+  "components": [
+    {"id":"tester","type":"backend","label":"Tekton","sublabel":"Solicitudes con ID de prueba","pos":[40,270],"size":[210,76]},
+    {"id":"gateway","type":"backend","label":"Kong Gateway","sublabel":"http-log en /transform","pos":[440,270],"size":[210,76]},
+    {"id":"application","type":"backend","label":"kong-transform-echo","sublabel":"Service + Pod :8080","pos":[840,270],"size":[220,76]},
+    {"id":"configuration","type":"cloud","label":"KongPlugin + Ingress","sublabel":"KIC configura el Gateway","pos":[440,50],"size":[210,76]},
+    {"id":"receiver","type":"backend","label":"Receptor HTTP interno","sublabel":"Service + Pod :8080","pos":[440,510],"size":[210,76]},
+    {"id":"evidence","type":"database","label":"Evidencia Tekton","sublabel":"Resumen seguro en PVC","pos":[40,510],"size":[210,76]}
+  ],
+  "connections": [
+    {"id":"request","from":"tester","to":"gateway","label":"HTTP /transform","variant":"emphasis"},
+    {"id":"upstream","from":"gateway","to":"application","label":"HTTP :8080","variant":"emphasis"},
+    {"id":"configure","from":"configuration","to":"gateway","label":"Configuración KIC","variant":"dashed","labelDy":24},
+    {"id":"logging","from":"gateway","to":"receiver","label":"POST JSON asíncrono","variant":"dashed","labelDy":24},
+    {"id":"verify","from":"receiver","to":"evidence","label":"Tekton consulta /events"}
+  ],
+  "cards": [
+    {"dot":"cyan","title":"Prueba","items":["Evento correlacionado con cada solicitud.","/demo y /demo2 sin eventos del plugin."]},
+    {"dot":"emerald","title":"Receptor","items":["Sin Route pública ni PVC propio.","Solo campos permitidos en memoria."]},
+    {"dot":"amber","title":"Rollback","items":["Desasociar Ingress y borrar plugin.","Eliminar receptor tras validar rutas."]}
+  ]
+}
