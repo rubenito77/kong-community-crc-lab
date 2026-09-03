@@ -19,12 +19,12 @@ spec.loader.exec_module(sink)
 TRACE, ROOT, PARENT, CHILD = "a" * 32, "b" * 16, "c" * 16, "d" * 16
 
 
-def payload(trace=TRACE, parent=PARENT):
+def payload(trace=TRACE, parent=PARENT, route="/transform/"):
     root = {"traceId": trace, "spanId": ROOT, "parentSpanId": parent, "name": "kong",
             "startTimeUnixNano": "1000000", "endTimeUnixNano": "3000000", "attributes": [
                 {"key": "http.method", "value": {"stringValue": "GET"}},
                 {"key": "http.status_code", "value": {"intValue": "200"}},
-                {"key": "http.route", "value": {"stringValue": "/transform"}},
+                {"key": "http.route", "value": {"stringValue": route}},
                 {"key": "http.url", "value": {"stringValue": "http://private/?token=SECRET"}},
                 {"key": "http.client_ip", "value": {"stringValue": "private"}}]}
     child = {"traceId": trace, "spanId": CHILD, "parentSpanId": ROOT, "name": "kong.balancer",
@@ -35,6 +35,43 @@ def payload(trace=TRACE, parent=PARENT):
 
 
 class EvidenceTests(unittest.TestCase):
+    def test_exact_kic_route_patterns(self):
+        for route in ("/transform", "/demo", "/demo2"):
+            for pattern in (route, route + "/", "~" + route + "$"):
+                with self.subTest(pattern=pattern):
+                    events = sink.normalize(payload(route=pattern))
+                    self.assertEqual(events[0]["route"], route)
+                    self.assertEqual(events[0]["route_pattern"], pattern)
+                    if route == "/transform":
+                        self.assertTrue(client.verify(events, {TRACE: PARENT}, set()))
+                    else:
+                        with self.assertRaisesRegex(AssertionError, "Root route"):
+                            client.verify(events, {TRACE: PARENT}, set())
+                        with self.assertRaisesRegex(AssertionError, "Control route"):
+                            client.verify(events, {}, {TRACE})
+
+    def test_unknown_route_patterns_fail_closed(self):
+        patterns = ("/transform-other", "/transform/private", "/transform//",
+                    "/transform?token=SECRET", "~/transform.*", "~/transform$|/demo",
+                    "~/transform", "/", "", None, ["/transform"], {"x": "/transform"})
+        for pattern in patterns:
+            with self.subTest(pattern=pattern):
+                events = sink.normalize(payload(route=pattern))
+                self.assertNotIn("route", events[0])
+                self.assertNotIn("route_pattern", events[0])
+                self.assertNotIn("SECRET", json.dumps(events))
+                with self.assertRaisesRegex(AssertionError, "Root route"):
+                    client.verify(events, {TRACE: PARENT}, set())
+
+    def test_missing_http_route_fails_closed(self):
+        data = payload()
+        root = data["resourceSpans"][0]["scopeSpans"][0]["spans"][0]
+        root["attributes"] = [a for a in root["attributes"] if a["key"] != "http.route"]
+        events = sink.normalize(data)
+        self.assertNotIn("route", events[0])
+        with self.assertRaisesRegex(AssertionError, "Root route"):
+            client.verify(events, {TRACE: PARENT}, set())
+
     def test_allowlist_and_correlation(self):
         events = sink.normalize(payload())
         self.assertTrue(client.verify(events, {TRACE: PARENT}, set()))

@@ -15,6 +15,14 @@ MAX_BODY = 2 * 1024 * 1024
 MAX_SPANS = 4000
 NAMES = {"kong", "kong.balancer", "kong.router", "kong.dns",
          "kong.access.plugin.opentelemetry", "kong.header_filter.plugin.opentelemetry"}
+# KIC 3.5 translates Prefix /name to /name/ and ~/name$.
+# Kong 3.9 exports route.paths[1] as http.route, not the requested URL.
+# Match literal strings only: never execute a received regex or use startswith.
+ROUTE_PATTERNS = {
+    pattern: route
+    for route in ("/transform", "/demo", "/demo2")
+    for pattern in (route, route + "/", "~" + route + "$")
+}
 
 
 def identifier(value, length):
@@ -52,8 +60,10 @@ def normalize(payload):
                          "name": span["name"], "duration_ns": end - start}
                 if attrs.get("http.method") == "GET":
                     event["method"] = "GET"
-                if attrs.get("http.route") in ("/transform", "/demo", "/demo2"):
-                    event["route"] = attrs["http.route"]
+                route_pattern = attrs.get("http.route")
+                if isinstance(route_pattern, str) and route_pattern in ROUTE_PATTERNS:
+                    event["route"] = ROUTE_PATTERNS[route_pattern]
+                    event["route_pattern"] = route_pattern
                 if str(attrs.get("http.status_code")) == "200":
                     event["status"] = 200
                 result.append(event)
