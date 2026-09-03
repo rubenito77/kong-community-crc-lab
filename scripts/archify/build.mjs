@@ -8,7 +8,7 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const lock = JSON.parse(readFileSync(resolve(root, 'docs/archify/archify.lock.json'), 'utf8'));
 const checkout = process.argv[2];
 if (!checkout) {
-  console.error('Usage: node scripts/archify/build.mjs <archify-checkout> [crc|http-log]');
+  console.error('Usage: node scripts/archify/build.mjs <archify-checkout> [crc|http-log|opentelemetry]');
   process.exit(2);
 }
 const toolRoot = resolve(checkout);
@@ -32,7 +32,7 @@ const pkg = JSON.parse(readFileSync(resolve(toolRoot, 'archify/package.json'), '
 if (pkg.version !== lock.packageVersion) throw new Error('Unexpected Archify package version');
 const cli = resolve(toolRoot, 'archify/bin/archify.mjs');
 const diagram = process.argv[3] || 'crc';
-if (!['crc', 'http-log'].includes(diagram)) throw new Error('Unknown diagram');
+if (!['crc', 'http-log', 'opentelemetry'].includes(diagram)) throw new Error('Unknown diagram');
 const source = `docs/archify/${diagram}.architecture.json`;
 const output = `docs/archify/${diagram}.architecture.html`;
 const validation = JSON.parse(run(process.execPath,

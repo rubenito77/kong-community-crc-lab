@@ -11,6 +11,10 @@ Prometheus Server ni Grafana.
   [JSON](http-log.architecture.json) y [recibo](http-log.delivery.json).
   Preparado; revisión visual y prueba en CRC pendientes.
   Generar con `node scripts/archify/build.mjs ../archify-renderer http-log`.
+- [OpenTelemetry](opentelemetry.architecture.html): [guía](../plugin-tests/opentelemetry.md),
+  [JSON](opentelemetry.architecture.json), [recibo](opentelemetry.delivery.json) y
+  [revisión pendiente](opentelemetry.review.md).
+  Generar con `node scripts/archify/build.mjs ../archify-renderer opentelemetry`.
 
 Este estilo se puede incorporar gradualmente a cada laboratorio, conservando
 Mermaid. Cada mapa deberá documentar dónde se aplica el plugin, el flujo de

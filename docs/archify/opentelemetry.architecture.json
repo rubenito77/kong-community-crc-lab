@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {"title": "OpenTelemetry · Laboratorio CRC", "quality_profile": "showcase", "viewBox": [1240, 740]},
+  "components": [
+    {"id": "test", "type": "backend", "label": "Tekton", "sublabel": "Peticiones con traceparent", "pos": [50, 300], "size": [220, 80]},
+    {"id": "gateway", "type": "backend", "label": "Kong Gateway", "sublabel": "Trazas en /transform", "pos": [490, 300], "size": [230, 80]},
+    {"id": "echo", "type": "backend", "label": "kong-transform-echo", "sublabel": "Sin SDK de trazas", "pos": [950, 300], "size": [230, 80]},
+    {"id": "config", "type": "cloud", "label": "KongPlugin + Ingress", "sublabel": "KIC configura la exportacion", "pos": [490, 50], "size": [230, 80]},
+    {"id": "collector", "type": "backend", "label": "OTel Collector", "sublabel": "OTLP/HTTP :4318", "pos": [490, 570], "size": [230, 80]},
+    {"id": "summary", "type": "backend", "label": "Resumen de spans", "sublabel": "Sidecar en memoria :8080", "pos": [950, 570], "size": [230, 80]}
+  ],
+  "connections": [
+    {"from": "test", "to": "gateway", "label": "HTTP + W3C", "variant": "emphasis"},
+    {"from": "gateway", "to": "echo", "label": "HTTP :8080", "variant": "emphasis"},
+    {"from": "config", "to": "gateway", "label": "Configuracion KIC", "variant": "dashed", "labelDy": 24},
+    {"from": "gateway", "to": "collector", "label": "Protobuf asincrono", "variant": "dashed", "labelDy": 24},
+    {"from": "collector", "to": "summary", "label": "JSON por loopback", "variant": "dashed"}
+  ],
+  "cards": [
+    {"dot": "cyan", "title": "Comprobacion", "items": ["Tekton consulta /events y guarda un resumen.", "Controles /demo y /demo2 sin exportacion."]},
+    {"dot": "emerald", "title": "Alcance", "items": ["Spans de Kong; no trazas internas de la app.", "Collector y sidecar sin Route ni PVC propio."]},
+    {"dot": "amber", "title": "Rollback", "items": ["Desasociar plugin y retirar Collector.", "Retirar ambas variables temporales de tracing."]}
+  ]
+}

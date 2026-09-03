@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "command": "deliver",
+  "type": "architecture",
+  "input": "docs/archify/opentelemetry.architecture.json",
+  "output": "docs/archify/opentelemetry.architecture.html",
+  "specification": {
+    "sha256": "4a331b525ac32ac206ac1fce0a6159dc55aadb9d54783c6f11286b03bf5da59f",
+    "bytes": 2026
+  },
+  "artifact": {
+    "sha256": "4a5d24913e7e681ca0bd350739ecd099b2c70a052c1e25802b33508a7ec67901",
+    "bytes": 705443
+  },
+  "validation": {
+    "checksPassed": 9,
+    "checkCount": 9,
+    "compositionProfile": "showcase",
+    "compositionStatus": "pass",
+    "errors": 0,
+    "warnings": 0
+  },
+  "archifyRevision": "06dd052602dd9a369e4d034e24faef0917b5a60c"
+}

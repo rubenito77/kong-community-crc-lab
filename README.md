@@ -108,6 +108,7 @@ validar estado inicial -> crear PipelineRun -> aplicar plugin
 | `hmac-auth` | `/transform` | Ausente 401, inválida 401, vencida 401 y válida 200 | Aprobado y revertido |
 | `prometheus` | `/transform` | Incrementos HTTP y latencias; controles aislados | Aprobado y revertido |
 | `http-log` | `/transform` | Cinco eventos correlacionados en receptor interno; controles aislados | Aprobado y revertido |
+| `opentelemetry` | `/transform` | Cinco trazas W3C con spans raíz/balancer; controles sin exportación | Preparado |
 
 Las Pipelines usan `/demo` y `/demo2` como rutas de control para demostrar que
 el plugin solamente afecta el Ingress objetivo. Los resultados reales quedan
@@ -149,6 +150,7 @@ El segundo comando crea o actualiza el ServiceAccount y su RBAC namespace-scoped
 - [HMAC Authentication](docs/plugin-tests/hmac-auth.md)
 - [Prometheus](docs/plugin-tests/prometheus.md)
 - [HTTP Log](docs/plugin-tests/http-log.md) — incluye Mermaid y Archify.
+- [OpenTelemetry](docs/plugin-tests/opentelemetry.md) — incluye Collector temporal, Mermaid y Archify.
 - [Desinstalación](docs/uninstall.md)
 
 ## Seguridad

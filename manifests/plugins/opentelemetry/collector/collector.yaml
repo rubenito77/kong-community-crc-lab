@@ -1,0 +1,38 @@
+# Official Collector decodes Kong's binary OTLP; only sanitized summaries persist.
+receivers:
+  otlp:
+    protocols:
+      http:
+        endpoint: 0.0.0.0:4318
+processors:
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 128
+    spike_limit_mib: 32
+  batch:
+    timeout: 1s
+    send_batch_size: 20
+    send_batch_max_size: 100
+exporters:
+  otlp_http/evidence:
+    traces_endpoint: http://127.0.0.1:8081/v1/traces
+    encoding: json
+    compression: none
+    timeout: 3s
+    retry_on_failure:
+      enabled: true
+      initial_interval: 1s
+      max_interval: 3s
+      max_elapsed_time: 15s
+    sending_queue:
+      enabled: true
+      queue_size: 100
+service:
+  telemetry:
+    logs:
+      level: warn
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [otlp_http/evidence]

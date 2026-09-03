@@ -1,0 +1,89 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: otel-lab-collector
+  namespace: kong-demo
+  labels:
+    kong-lab/plugin: opentelemetry
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: otel-lab-collector
+  template:
+    metadata:
+      labels:
+        app: otel-lab-collector
+        kong-lab/plugin: opentelemetry
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: collector
+          image: docker.io/otel/opentelemetry-collector:0.145.0
+          args: [--config=/app/collector.yaml]
+          ports:
+            - name: otlp-http
+              containerPort: 4318
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 300m
+              memory: 192Mi
+          readinessProbe:
+            tcpSocket:
+              port: otlp-http
+          livenessProbe:
+            tcpSocket:
+              port: otlp-http
+            initialDelaySeconds: 15
+          volumeMounts:
+            - name: config
+              mountPath: /app
+              readOnly: true
+        - name: evidence
+          image: docker.io/python:3.13-alpine
+          command: [python, -B, /app/evidence.py]
+          ports:
+            - name: evidence
+              containerPort: 8080
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          resources:
+            requests:
+              cpu: 20m
+              memory: 32Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: evidence
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: evidence
+          volumeMounts:
+            - name: config
+              mountPath: /app
+              readOnly: true
+      volumes:
+        - name: config
+          configMap:
+            name: otel-lab-config
