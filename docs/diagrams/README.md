@@ -23,6 +23,7 @@ plugin y qué recursos temporales o persistentes necesita cada Pipeline.
 
 - [Prometheus](prometheus.md)
 - [HTTP Log](http-log.md) — [mapa Archify](../archify/http-log.architecture.html).
+- [OpenTelemetry](opentelemetry.md) — [mapa Archify](../archify/opentelemetry.architecture.html).
 
 ## Dependencias comparadas
 

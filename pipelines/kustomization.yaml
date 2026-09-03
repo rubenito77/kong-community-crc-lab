@@ -16,3 +16,4 @@ resources:
   - pipelines/kong-plugin-hmac-auth.yaml
   - pipelines/kong-plugin-prometheus.yaml
   - pipelines/kong-plugin-http-log.yaml
+  - pipelines/kong-plugin-opentelemetry.yaml

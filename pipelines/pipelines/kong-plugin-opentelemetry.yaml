@@ -1,0 +1,118 @@
+apiVersion: tekton.dev/v1
+kind: Pipeline
+metadata:
+  name: kong-plugin-opentelemetry
+  namespace: kong-demo
+  labels:
+    kong-lab/plugin: opentelemetry
+spec:
+  params:
+    - name: git-url
+      type: string
+    - name: git-revision
+      type: string
+    - name: kong-proxy-url
+      type: string
+    - name: evidence-url
+      type: string
+  workspaces:
+    - name: shared
+  tasks:
+    - name: clone-repository
+      params:
+        - name: git-url
+          value: $(params.git-url)
+        - name: git-revision
+          value: $(params.git-revision)
+      workspaces:
+        - name: source
+          workspace: shared
+      taskSpec:
+        params:
+          - name: git-url
+            type: string
+          - name: git-revision
+            type: string
+        workspaces:
+          - name: source
+        steps:
+          - name: clone
+            image: docker.io/alpine/git:v2.47.2
+            env:
+              - name: GIT_URL
+                value: $(params.git-url)
+              - name: GIT_REVISION
+                value: $(params.git-revision)
+            script: |
+              #!/bin/sh
+              set -eu
+              test ! -e "$(workspaces.source.path)/repository"
+              git clone --depth 1 --branch "$GIT_REVISION" "$GIT_URL" "$(workspaces.source.path)/repository"
+              git -c safe.directory="$(workspaces.source.path)/repository" -C "$(workspaces.source.path)/repository" rev-parse HEAD
+    - name: configure-and-test
+      runAfter: [clone-repository]
+      params:
+        - name: kong-proxy-url
+          value: $(params.kong-proxy-url)
+        - name: evidence-url
+          value: $(params.evidence-url)
+      workspaces:
+        - name: source
+          workspace: shared
+      taskSpec:
+        params:
+          - name: kong-proxy-url
+            type: string
+          - name: evidence-url
+            type: string
+        workspaces:
+          - name: source
+        steps:
+          - name: check-ingress
+            image: quay.io/openshift/origin-cli:4.22
+            script: |
+              #!/bin/sh
+              set -eu
+              for name in kong-transform-echo kong-echo kong-echo-2; do
+                plugins="$(oc get ingress "$name" -n kong-demo -o jsonpath='{.metadata.annotations.konghq\.com/plugins}')"
+                test -z "$plugins" || { echo "Ingress $name already has plugins"; exit 1; }
+              done
+              existing="$(oc get kongplugin demo-opentelemetry -n kong-demo --ignore-not-found -o name)"
+              test -z "$existing" || { echo "Rollback required before rerun"; exit 1; }
+          - name: baseline
+            image: docker.io/python:3.13-alpine
+            env:
+              - name: KONG_PROXY_URL
+                value: $(params.kong-proxy-url)
+              - name: EVIDENCE_URL
+                value: $(params.evidence-url)
+              - name: EVIDENCE_DIR
+                value: $(workspaces.source.path)/evidence/opentelemetry
+              - name: PHASE
+                value: baseline
+            script: |
+              #!/bin/sh
+              set -eu
+              python "$(workspaces.source.path)/repository/tests/opentelemetry_lab.py"
+          - name: configure
+            image: quay.io/openshift/origin-cli:4.22
+            script: |
+              #!/bin/sh
+              set -eu
+              oc create -f "$(workspaces.source.path)/repository/manifests/plugins/opentelemetry/kongplugin.yaml"
+              oc annotate ingress kong-transform-echo -n kong-demo konghq.com/plugins=demo-opentelemetry
+          - name: test
+            image: docker.io/python:3.13-alpine
+            env:
+              - name: KONG_PROXY_URL
+                value: $(params.kong-proxy-url)
+              - name: EVIDENCE_URL
+                value: $(params.evidence-url)
+              - name: EVIDENCE_DIR
+                value: $(workspaces.source.path)/evidence/opentelemetry
+              - name: PHASE
+                value: test
+            script: |
+              #!/bin/sh
+              set -eu
+              python "$(workspaces.source.path)/repository/tests/opentelemetry_lab.py"
