@@ -1,6 +1,7 @@
 # Flujo: OpenTelemetry
 
-Estado: preparado; pendiente de ejecutar y validar en CRC.
+Estado: aprobado en CRC; rollback pendiente.
+[Evidencia del 2026-09-03](../plugin-test-results/opentelemetry-2026-09-03.md).
 
 ```mermaid
 flowchart TD

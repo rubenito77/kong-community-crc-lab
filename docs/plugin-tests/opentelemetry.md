@@ -1,6 +1,10 @@
 # P04-03 — OpenTelemetry
 
-Estado: **Preparado; pendiente de prueba en CRC**. No hay resultado aprobado todavía.
+Estado: **Aprobado en CRC el 2026-09-03; rollback pendiente**.
+
+[Resultado real](../plugin-test-results/opentelemetry-2026-09-03.md): PipelineRun
+`kong-plugin-opentelemetry-gdlch`, cinco trazas correlacionadas y controles
+aislados durante 45 segundos. Incluye el fallo previo y la corrección del PR #44.
 
 ## Objetivo y alcance
 
@@ -156,7 +160,7 @@ oc logs $TEST_POD -n kong-demo -c step-baseline
 oc logs $TEST_POD -n kong-demo -c step-test
 ```
 
-Esperado, no evidencia observada aún:
+Salida esperada, observada en la ejecución aprobada enlazada al inicio:
 
 ```text
 control=/demo status=200
@@ -232,7 +236,8 @@ La salida aportada por el usuario muestra que el PipelineRun
 terminaron con código 0. El Collector estaba 2/2 sin reinicios y sus logs no
 mostraron mensajes. Para el span que disparó el fallo habían pasado parent ID,
 método GET y estado 200; no se completaron la validación de las cinco trazas ni
-los 45 segundos de aislamiento. **El laboratorio no está aprobado.**
+los 45 segundos de aislamiento. **Esa ejecución no quedó aprobada.** La repetición
+`kong-plugin-opentelemetry-gdlch` sí pasó; véase el resultado enlazado al inicio.
 
 El filtro anterior descartaba los patrones generados para Ingress `Prefix`.
 KIC 3.5 genera `/transform/` y `~/transform$`; Kong 3.9.3 toma `route.paths[1]`

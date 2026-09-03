@@ -41,4 +41,4 @@ opentelemetry mediante un selector explícito; el valor por defecto sigue siendo
 - Nuevos plugins: incorporación acordada para los siguientes laboratorios.
 - HTTP Log: mapa preparado junto al laboratorio; ejecución y revisión visual pendientes.
 - Plugins anteriores: conversión pendiente; sus Mermaid se conservan.
-- OpenTelemetry: mapa añadido al laboratorio; prueba CRC y revisión visual pendientes.
+- OpenTelemetry: mapa añadido; [prueba CRC aprobada, rollback pendiente](../plugin-test-results/opentelemetry-2026-09-03.md). La revisión visual completa mantiene su estado independiente.
