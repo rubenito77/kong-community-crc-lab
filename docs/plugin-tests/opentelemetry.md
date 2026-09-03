@@ -19,6 +19,21 @@ ese resumen y guarda los resultados agregados en su PVC.
 | `/demo` y `/demo2` con sus propios trace IDs | HTTP 200; sin exportación durante 45 s |
 | Reinicio del sidecar o pérdida de buffer | Prueba falla; no declarar aislamiento |
 
+`http.route` contiene un patrón de la Route de Kong, no necesariamente la URL
+solicitada. El sidecar normaliza exclusivamente estas cadenas literales:
+
+| Ruta lógica | Patrones permitidos |
+|---|---|
+| `/transform` | `/transform`, `/transform/`, `~/transform$` |
+| `/demo` | `/demo`, `/demo/`, `~/demo$` |
+| `/demo2` | `/demo2`, `/demo2/`, `~/demo2$` |
+
+Conserva el patrón permitido como `route_pattern` y la identidad lógica como
+`route`. No ejecuta regex recibidas, no utiliza coincidencias por prefijo y no
+conserva valores desconocidos. Una ruta ausente/desconocida sigue haciendo fallar
+la prueba. Los controles conservan su identidad y sus trace IDs se siguen
+rechazando durante toda la observación.
+
 Los spans miden operaciones de Kong; sus duraciones no son equivalentes exactos
 de los contadores de latencia de Prometheus ni se restan para deducir latencia.
 Echo no tiene SDK: no se afirma tracing distribuido dentro de la aplicación.
@@ -209,6 +224,77 @@ y tres HTTP 200. No usar `rollout undo`: podría revertir cambios ajenos.
 
 ## Validación local y diagramas
 
+### Incidente 2026-09-03 y repetición tras la corrección
+
+La salida aportada por el usuario muestra que el PipelineRun
+`kong-plugin-opentelemetry-4zkk8` falló en `step-test`, en la comparación
+`root.get("route") == "/transform"`. Clone, check-ingress, baseline y configure
+terminaron con código 0. El Collector estaba 2/2 sin reinicios y sus logs no
+mostraron mensajes. Para el span que disparó el fallo habían pasado parent ID,
+método GET y estado 200; no se completaron la validación de las cinco trazas ni
+los 45 segundos de aislamiento. **El laboratorio no está aprobado.**
+
+El filtro anterior descartaba los patrones generados para Ingress `Prefix`.
+KIC 3.5 genera `/transform/` y `~/transform$`; Kong 3.9.3 toma `route.paths[1]`
+para `http.route`. Es un defecto comprobado del test, compatible con el fallo;
+la salida de consola no contenía el atributo original para comprobar su valor
+exacto en esa ejecución. Se corrige mediante la lista explícita anterior y
+pruebas de regresión, manteniendo todas las demás verificaciones.
+
+Después de revisar/fusionar el PR de corrección, actualizar main. No repetir el
+PipelineRun antes de retirar la asociación anterior y reiniciar el sidecar.
+
+```powershell
+git switch main
+git pull origin main
+oc whoami --show-server
+$Ingress = oc get ingress kong-transform-echo -n kong-demo -o json | ConvertFrom-Json
+if ($LASTEXITCODE -ne 0) { throw 'No se pudo leer el Ingress' }
+if ($Ingress.metadata.annotations.'konghq.com/plugins' -ne 'demo-opentelemetry') {
+    throw 'La asociacion cambio: detenerse y revisar antes de eliminarla'
+}
+oc annotate ingress kong-transform-echo -n kong-demo konghq.com/plugins-
+if ($LASTEXITCODE -ne 0) { throw 'No se pudo desasociar el plugin' }
+oc delete kongplugin demo-opentelemetry -n kong-demo
+Start-Sleep -Seconds 45
+```
+
+No borrar el PipelineRun fallido ni su PVC. Antes de actualizar el Collector,
+comprobar que las tres rutas vuelven a responder 200 y que el Ingress está limpio.
+Actualizar la configuración y reiniciar ambos contenedores del Deployment:
+
+```powershell
+oc apply -k .\manifests\plugins\opentelemetry\collector --dry-run=server
+if ($LASTEXITCODE -ne 0) { throw 'Fallo la validacion del Collector' }
+oc apply -k .\manifests\plugins\opentelemetry\collector
+if ($LASTEXITCODE -ne 0) { throw 'Fallo la actualizacion del Collector' }
+oc rollout restart deployment/otel-lab-collector -n kong-demo
+oc rollout status deployment/otel-lab-collector -n kong-demo --timeout=180s
+oc get pods -n kong-demo -l app=otel-lab-collector
+oc logs deployment/otel-lab-collector -n kong-demo -c collector --since=5m
+oc exec deployment/otel-lab-collector -n kong-demo -c evidence -- env PYTHONPATH=/app python -B -c 'import evidence; print(evidence.ROUTE_PATTERNS)'
+```
+
+El reinicio elimina las trazas temporales en memoria; no afecta al PVC de Tekton.
+La salida de `ROUTE_PATTERNS` debe incluir las nueve cadenas de la tabla. La
+comprobación de código no sustituye el reinicio ni la nueva prueba de exportación.
+No reinstalar Kong ni modificar sus variables de tracing para esta corrección;
+conservarlas durante la repetición y retirarlas al finalizar según el rollback.
+
+Si el Collector vuelve a 2/2 y las rutas están en 200, crear **una nueva ejecución**
+siguiendo la sección 3. La Pipeline ya instalada clona `main`; no necesita cambios
+de definición. El nuevo clon contiene el test corregido. Conservar evidencia de
+ambas ejecuciones y no declarar aprobación antes de obtener el nuevo resultado.
+
+Para consultar condiciones sin problemas de comillas JSONPath en PowerShell:
+
+```powershell
+$Run = oc get pipelinerun $PIPELINE_RUN -n kong-demo -o json | ConvertFrom-Json
+$Run.status.conditions | Select-Object type, status, reason, message | Format-List
+```
+
+### Pruebas locales
+
 ```powershell
 python -m unittest discover -s tests -v
 ```
@@ -222,5 +308,6 @@ evicción y flujo simulado. No sustituyen la ejecución del Collector ni de CRC.
   [revisión](../archify/opentelemetry.review.md).
 - [Plugin Kong 3.9.3: esquema](https://github.com/Kong/kong/blob/3.9.3/kong/plugins/opentelemetry/schema.lua).
 - [Instrumentación Kong 3.9.3](https://github.com/Kong/kong/blob/3.9.3/kong/observability/tracing/instrumentation.lua).
+- [Traducción de paths de Ingress en KIC 3.5](https://github.com/Kong/kubernetes-ingress-controller/blob/v3.5.0/internal/dataplane/translator/subtranslator/ingress.go).
 - [Collector 0.145.0: distribución](https://github.com/open-telemetry/opentelemetry-collector-releases/blob/v0.145.0/distributions/otelcol/manifest.yaml).
 - [Exporter OTLP HTTP/JSON](https://github.com/open-telemetry/opentelemetry-collector/blob/v0.145.0/exporter/otlphttpexporter/README.md).

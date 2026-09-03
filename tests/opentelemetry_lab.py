@@ -29,7 +29,7 @@ def verify(events, expected, controls):
         root = roots[0]
         assert root["parent_id"] == parent, "W3C parent not preserved"
         assert root.get("method") == "GET" and root.get("status") == 200
-        assert root.get("route") == "/transform"
+        assert root.get("route") == "/transform", "Root route missing, unsupported or not /transform"
         assert root["duration_ns"] > 0
         children = [s for s in spans.values() if s["name"] == "kong.balancer"]
         if not children:
